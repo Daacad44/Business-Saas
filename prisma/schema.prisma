@@ -1,0 +1,250 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_DIRECT")
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+  PENDING
+}
+
+enum MembershipStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+enum BranchStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum WarehouseStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum BusinessType {
+  RETAIL
+  WHOLESALE
+  SUPERMARKET
+  PHARMACY
+  ELECTRONICS
+  CLOTHING
+  HARDWARE
+  MOBILE
+  AUTO_PARTS
+  GENERAL_TRADING
+  OTHER
+}
+
+model User {
+  id              String     @id @default(cuid())
+  email           String     @unique
+  passwordHash    String
+  fullName        String
+  phone           String?
+  status          UserStatus @default(ACTIVE)
+  emailVerifiedAt DateTime?
+  lastLoginAt     DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  memberships     Membership[]
+  sessions        Session[]
+  invitationsSent Invitation[] @relation("InvitedBy")
+  auditLogs       AuditLog[]
+}
+
+model Session {
+  id               String    @id @default(cuid())
+  userId           String
+  refreshTokenHash String    @unique
+  userAgent        String?
+  ipAddress        String?
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Business {
+  id        String       @id @default(cuid())
+  name      String
+  slug      String       @unique
+  type      BusinessType
+  phone     String?
+  email     String?
+  currency  String       @default("USD")
+  timezone  String       @default("Africa/Mogadishu")
+  locale    String       @default("en")
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  settings    BusinessSettings?
+  memberships Membership[]
+  invitations Invitation[]
+  roles       Role[]
+  branches    Branch[]
+  warehouses  Warehouse[]
+  auditLogs   AuditLog[]
+}
+
+model BusinessSettings {
+  id              String   @id @default(cuid())
+  businessId      String   @unique
+  lowStockAlerts  Boolean  @default(true)
+  quietHoursStart String?
+  quietHoursEnd   String?
+  extra           Json     @default("{}")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  family      String
+  description String
+  createdAt   DateTime @default(now())
+
+  roles RolePermission[]
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  businessId  String
+  name        String
+  slug        String
+  description String?
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  business    Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  permissions RolePermission[]
+  memberships Membership[]
+  invitations Invitation[]
+
+  @@unique([businessId, slug])
+  @@index([businessId])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model Membership {
+  id         String           @id @default(cuid())
+  businessId String
+  userId     String
+  roleId     String
+  status     MembershipStatus @default(ACTIVE)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role     Role     @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  @@unique([businessId, userId])
+  @@index([userId])
+}
+
+model Invitation {
+  id          String           @id @default(cuid())
+  businessId  String
+  email       String
+  roleId      String
+  tokenHash   String           @unique
+  status      InvitationStatus @default(PENDING)
+  invitedById String
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime         @default(now())
+
+  business  Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  invitedBy User     @relation("InvitedBy", fields: [invitedById], references: [id])
+
+  @@index([businessId, email])
+}
+
+model Branch {
+  id         String       @id @default(cuid())
+  businessId String
+  name       String
+  code       String
+  address    String?
+  phone      String?
+  isDefault  Boolean      @default(false)
+  status     BranchStatus @default(ACTIVE)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  business   Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  warehouses Warehouse[]
+
+  @@unique([businessId, code])
+  @@index([businessId])
+}
+
+model Warehouse {
+  id         String          @id @default(cuid())
+  businessId String
+  branchId   String
+  name       String
+  code       String
+  isDefault  Boolean         @default(false)
+  status     WarehouseStatus @default(ACTIVE)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  branch   Branch   @relation(fields: [branchId], references: [id], onDelete: Restrict)
+
+  @@unique([businessId, code])
+  @@index([businessId])
+  @@index([branchId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  businessId String?
+  userId     String?
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json     @default("{}")
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  business Business? @relation(fields: [businessId], references: [id], onDelete: SetNull)
+  user     User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([businessId, createdAt])
+  @@index([entityType, entityId])
+}

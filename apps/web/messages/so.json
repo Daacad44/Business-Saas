@@ -1,0 +1,131 @@
+{
+  "meta": {
+    "product": "Daljir Business Platform",
+    "company": "Daljir Technology",
+    "tagline": "Waxaan abuurnaa waxa horay kuu qaada"
+  },
+  "nav": {
+    "login": "Soo gal",
+    "register": "Samee akoon",
+    "dashboard": "Dashboard",
+    "settings": "Dejinta",
+    "team": "Kooxda",
+    "roles": "Doorarka",
+    "locations": "Goobaha",
+    "logout": "Ka bax",
+    "language": "Luqadda"
+  },
+  "landing": {
+    "eyebrow": "Software ganacsi oo multi-tenant ah",
+    "title": "Maamul alaabta, iibka, iyo deynta hal meel.",
+    "body": "Daljir wuxuu ka caawiyaa tafaariiqda iyo jumlada inay maamulaan stock, POS, macaamiisha, iyo xasuusinta deynta — iyadoo ganacsi kastaa uu gooni yahay.",
+    "primary": "Bilow ganacsigaaga",
+    "secondary": "Akoon ayaan haystaa",
+    "phase": "Phase 1 waa shaqeynayaa: akoon, onboarding, koox, laamo, iyo bakhaaro.",
+    "f1": "Kala soocida ganacsiyada",
+    "f1b": "Su'aal kasta waxaa lagu xaddidaa ganacsiga la xaqiijiyay.",
+    "f2": "Doorar ku habboon shaqada",
+    "f2b": "Owner, cashier, shaqaalaha bakhaarka iyo kuwo kale — server-ka ayaa xaqiijiya.",
+    "f3": "Diyaar u ah automation-ka deynta",
+    "f3b": "Aasaaska xasuusinta taariikhda dhimashada ayaa diyaar u ah wejiyada xiga."
+  },
+  "auth": {
+    "loginTitle": "Ku soo noqo",
+    "loginBody": "Soo gal workspace-kaaga Daljir.",
+    "registerTitle": "Samee akoon",
+    "registerBody": "Akoon keliya. Kadib ganacsigaaga ayaan dhisaynaa.",
+    "email": "Email",
+    "password": "Furaha sirta",
+    "fullName": "Magaca buuxa",
+    "phone": "Telefoon (ikhtiyaar)",
+    "submitLogin": "Soo gal",
+    "submitRegister": "Samee akoon",
+    "noAccount": "Akoon ma lihid?",
+    "haveAccount": "Hore ayaad u isdiiwaangelisay?",
+    "inviteNote": "Waxaad ku biiraysaa martiqaad."
+  },
+  "onboarding": {
+    "title": "Deji ganacsigaaga",
+    "body": "Tani waxay abuuraysaa tenant, doorka Owner, laanta ugu horreysa, iyo bakhaarka.",
+    "businessName": "Magaca ganacsiga",
+    "businessType": "Nooca ganacsiga",
+    "currency": "Lacagta",
+    "branchName": "Magaca laanta ugu horreysa",
+    "branchCode": "Koodhka laanta",
+    "warehouseName": "Magaca bakhaarka ugu horreeya",
+    "warehouseCode": "Koodhka bakhaarka",
+    "submit": "Dhammee dejinta",
+    "types": {
+      "RETAIL": "Tafaariiq",
+      "WHOLESALE": "Jumlo",
+      "SUPERMARKET": "Suuq weyn",
+      "PHARMACY": "Farmashi",
+      "ELECTRONICS": "Elektaroonig",
+      "CLOTHING": "Dhar",
+      "HARDWARE": "Qalab",
+      "MOBILE": "Dukaan mobil",
+      "AUTO_PARTS": "Qaybaha baabuurta",
+      "GENERAL_TRADING": "Ganacsi guud",
+      "OTHER": "Kan kale"
+    }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "hello": "Ku soo dhawoow, {name}",
+    "empty": "Inventory, POS, iyo automation-ka deynta waxay imanayaan wejiyada xiga. Bilow kooxda iyo goobaha.",
+    "branches": "Laamaha",
+    "warehouses": "Bakhaarada",
+    "members": "Xubnaha kooxda",
+    "ctaTeam": "Martiqaad kooxda",
+    "ctaLocations": "Maamul goobaha"
+  },
+  "settings": {
+    "title": "Dejinta ganacsiga",
+    "saved": "Waa la keydiyay",
+    "name": "Magaca ganacsiga",
+    "currency": "Lacagta",
+    "save": "Kaydi isbeddelka",
+    "lowStock": "Digniinaha stock-ga hooseeya",
+    "quietStart": "Bilowga saacadaha aamusan",
+    "quietEnd": "Dhamaadka saacadaha aamusan"
+  },
+  "team": {
+    "title": "Kooxda",
+    "invite": "Martiqaad xubin",
+    "email": "Email",
+    "role": "Doorka",
+    "send": "Dir martiqaadka",
+    "tokenHint": "Wadaag linkigan. Dirista email-ka waxay imanaysaa weji dambe.",
+    "copy": "Nuqul garee linkiga",
+    "empty": "Xubno wali ma jiraan.",
+    "remove": "Ka saar",
+    "status": "Xaaladda"
+  },
+  "roles": {
+    "title": "Doorarka",
+    "system": "Nidaam",
+    "custom": "Gaar ah",
+    "permissions": "Ogolaanshaha"
+  },
+  "locations": {
+    "title": "Laamaha iyo bakhaarada",
+    "addBranch": "Kudar laan",
+    "addWarehouse": "Kudar bakhaar",
+    "branch": "Laanta",
+    "warehouse": "Bakhaarka",
+    "code": "Koodhka",
+    "name": "Magaca",
+    "default": "Asal ahaan",
+    "archive": "Kaydi",
+    "create": "Abuur",
+    "emptyBranches": "Laamo wali ma jiraan.",
+    "emptyWarehouses": "Bakhaaro wali ma jiraan."
+  },
+  "common": {
+    "loading": "Waa la soo rarayaa…",
+    "error": "Khalad ayaa dhacay",
+    "retry": "Isku day mar kale",
+    "cancel": "Jooji",
+    "close": "Xir"
+  }
+}

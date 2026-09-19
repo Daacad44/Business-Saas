@@ -1,0 +1,17 @@
+node_modules
+.turbo
+dist
+.next
+.vercel
+coverage
+*.log
+.env
+.env.local
+.env.*.local
+*.tsbuildinfo
+prisma/*.db
+.DS_Store
+apps/web/.next
+apps/api/dist
+apps/worker/dist
+packages/database/generated

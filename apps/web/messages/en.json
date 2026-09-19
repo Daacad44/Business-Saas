@@ -1,0 +1,131 @@
+{
+  "meta": {
+    "product": "Daljir Business Platform",
+    "company": "Daljir Technology",
+    "tagline": "Creating what moves you forward"
+  },
+  "nav": {
+    "login": "Log in",
+    "register": "Create account",
+    "dashboard": "Dashboard",
+    "settings": "Settings",
+    "team": "Team",
+    "roles": "Roles",
+    "locations": "Locations",
+    "logout": "Log out",
+    "language": "Language"
+  },
+  "landing": {
+    "eyebrow": "Multi-tenant business software",
+    "title": "Run inventory, sales, and credit from one platform.",
+    "body": "Daljir helps retailers and wholesalers manage stock, POS, customers, and debt reminders with tenant isolation and commercial-grade controls.",
+    "primary": "Start your business",
+    "secondary": "I already have an account",
+    "phase": "Phase 1 is live: accounts, onboarding, teams, branches, and warehouses.",
+    "f1": "Strict tenant isolation",
+    "f1b": "Every query is scoped to the authenticated business.",
+    "f2": "Roles that match the shop floor",
+    "f2b": "Owner, cashier, warehouse staff, and more — enforced on the server.",
+    "f3": "Ready for credit automation",
+    "f3b": "The foundation is in place for due-date reminders in later phases."
+  },
+  "auth": {
+    "loginTitle": "Welcome back",
+    "loginBody": "Sign in to your Daljir workspace.",
+    "registerTitle": "Create your account",
+    "registerBody": "One account. Then we will set up your business.",
+    "email": "Email",
+    "password": "Password",
+    "fullName": "Full name",
+    "phone": "Phone (optional)",
+    "submitLogin": "Log in",
+    "submitRegister": "Create account",
+    "noAccount": "Need an account?",
+    "haveAccount": "Already registered?",
+    "inviteNote": "You are joining with an invitation."
+  },
+  "onboarding": {
+    "title": "Set up your business",
+    "body": "This creates your tenant, owner role, first branch, and warehouse.",
+    "businessName": "Business name",
+    "businessType": "Business type",
+    "currency": "Currency",
+    "branchName": "First branch name",
+    "branchCode": "Branch code",
+    "warehouseName": "First warehouse name",
+    "warehouseCode": "Warehouse code",
+    "submit": "Finish setup",
+    "types": {
+      "RETAIL": "Retail",
+      "WHOLESALE": "Wholesale",
+      "SUPERMARKET": "Supermarket",
+      "PHARMACY": "Pharmacy",
+      "ELECTRONICS": "Electronics",
+      "CLOTHING": "Clothing",
+      "HARDWARE": "Hardware",
+      "MOBILE": "Mobile shop",
+      "AUTO_PARTS": "Auto parts",
+      "GENERAL_TRADING": "General trading",
+      "OTHER": "Other"
+    }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "hello": "Welcome, {name}",
+    "empty": "Inventory, POS, and debt automation come in later phases. Start by reviewing your team and locations.",
+    "branches": "Branches",
+    "warehouses": "Warehouses",
+    "members": "Team members",
+    "ctaTeam": "Invite your team",
+    "ctaLocations": "Manage locations"
+  },
+  "settings": {
+    "title": "Business settings",
+    "saved": "Saved",
+    "name": "Business name",
+    "currency": "Currency",
+    "save": "Save changes",
+    "lowStock": "Low-stock alerts",
+    "quietStart": "Quiet hours start",
+    "quietEnd": "Quiet hours end"
+  },
+  "team": {
+    "title": "Team",
+    "invite": "Invite member",
+    "email": "Email",
+    "role": "Role",
+    "send": "Send invitation",
+    "tokenHint": "Share this invitation link. Email delivery ships in a later phase.",
+    "copy": "Copy link",
+    "empty": "No members yet.",
+    "remove": "Remove",
+    "status": "Status"
+  },
+  "roles": {
+    "title": "Roles",
+    "system": "System",
+    "custom": "Custom",
+    "permissions": "Permissions"
+  },
+  "locations": {
+    "title": "Branches and warehouses",
+    "addBranch": "Add branch",
+    "addWarehouse": "Add warehouse",
+    "branch": "Branch",
+    "warehouse": "Warehouse",
+    "code": "Code",
+    "name": "Name",
+    "default": "Default",
+    "archive": "Archive",
+    "create": "Create",
+    "emptyBranches": "No branches yet.",
+    "emptyWarehouses": "No warehouses yet."
+  },
+  "common": {
+    "loading": "Loading…",
+    "error": "Something went wrong",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "close": "Close"
+  }
+}
