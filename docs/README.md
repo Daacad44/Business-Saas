@@ -36,3 +36,7 @@ Credit sales automatically become debt records with due dates. The automation en
 14. Super Admin
 15. SaaS billing
 16. Security, testing and production hardening
+
+## Status
+
+Current implementation vs this blueprint: [Project Gaan status report](11-Status/project-gaan-status-report.md).

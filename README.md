@@ -10,6 +10,8 @@ Multi-tenant SaaS for inventory, POS, customers, credit/debt, and automated remi
 
 Authentication, multi-tenancy, RBAC, business onboarding, branches, and warehouses. English and Somali UI.
 
+Full project status (Somali + technical audit): [docs/11-Status/project-gaan-status-report.md](docs/11-Status/project-gaan-status-report.md).
+
 ## Stack
 
 - Web: Next.js, TypeScript, Tailwind, shadcn/ui, next-intl
