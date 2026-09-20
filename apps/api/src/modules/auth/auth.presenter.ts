@@ -34,6 +34,7 @@ export async function toSessionPayload(userId: string, businessId?: string | nul
       fullName: user.fullName,
       phone: user.phone,
       status: user.status,
+      platformRole: user.platformRole,
     },
     memberships: mapped,
     currentMembership: current,
