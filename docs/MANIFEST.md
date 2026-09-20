@@ -11,4 +11,5 @@
 - `08-Roadmap/development-roadmap.md`
 - `09-Security/security-checklist.md`
 - `10-Dev-Standards/engineering-standards.md`
+- `11-Status/project-gaan-status-report.md`
 - `CLAUDE.md`

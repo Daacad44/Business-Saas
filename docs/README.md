@@ -19,6 +19,9 @@ Credit sales automatically become debt records with due dates. The automation en
 - Infrastructure: Docker, Coolify, VPS, Cloudflare, object storage
 - Architecture: Multi-tenant SaaS with strict tenant isolation
 
+## Status
+See [`11-Status/project-gaan-status-report.md`](11-Status/project-gaan-status-report.md) for the 20 September 2026 full project report (Phase 1 foundation vs remaining roadmap).
+
 ## Primary Build Order
 1. Architecture & product specification
 2. Multi-tenancy
