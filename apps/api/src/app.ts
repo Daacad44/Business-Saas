@@ -3,6 +3,7 @@ import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import { env } from "./lib/env.js";
+import { forbidden } from "./lib/errors.js";
 import { sendData } from "./lib/response.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
@@ -11,14 +12,22 @@ import { businessesRouter } from "./modules/businesses/businesses.routes.js";
 import { permissionsRouter, rolesRouter } from "./modules/roles/roles.routes.js";
 import { invitationsRouter, usersRouter } from "./modules/users/users.routes.js";
 import { warehousesRouter } from "./modules/warehouses/warehouses.routes.js";
+import { adminRouter } from "./modules/admin/admin.routes.js";
 
 export function createApp() {
   const app = express();
   app.set("trust proxy", 1);
   app.use(helmet());
+  const allowedOrigins = new Set([env.WEB_ORIGIN, env.ADMIN_ORIGIN]);
   app.use(
     cors({
-      origin: env.WEB_ORIGIN,
+      origin: (origin, callback) => {
+        if (!origin || allowedOrigins.has(origin)) {
+          callback(null, true);
+        } else {
+          callback(forbidden("Origin not allowed by CORS"));
+        }
+      },
       credentials: true,
     }),
   );
@@ -37,6 +46,7 @@ export function createApp() {
   app.use("/api/v1/permissions", permissionsRouter);
   app.use("/api/v1/branches", branchesRouter);
   app.use("/api/v1/warehouses", warehousesRouter);
+  app.use("/api/v1/admin", adminRouter);
 
   app.use(errorHandler);
   return app;
