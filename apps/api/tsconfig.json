@@ -3,7 +3,7 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
-    "noEmit": true,
+    "noEmit": false,
     "declaration": false,
     "declarationMap": false,
     "types": ["node"]

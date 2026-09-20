@@ -1,5 +1,21 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalPassThroughEnv": [
+    "NODE_ENV",
+    "PORT",
+    "DATABASE_URL",
+    "DATABASE_URL_DIRECT",
+    "REDIS_URL",
+    "JWT_ACCESS_SECRET",
+    "JWT_ACCESS_TTL",
+    "REFRESH_TOKEN_TTL_DAYS",
+    "WEB_ORIGIN",
+    "API_ORIGIN",
+    "ADMIN_ORIGIN",
+    "COOKIE_DOMAIN",
+    "COOKIE_SECURE",
+    "INVITATION_TTL_DAYS"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

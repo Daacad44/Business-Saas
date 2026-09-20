@@ -67,12 +67,15 @@ export type RoleSlug =
   | "warehouse_staff"
   | "viewer";
 
+export type PlatformRole = "USER" | "SUPER_ADMIN";
+
 export type AuthUser = {
   id: string;
   email: string;
   fullName: string;
   phone: string | null;
   status: "ACTIVE" | "DISABLED" | "PENDING";
+  platformRole: PlatformRole;
 };
 
 export type MembershipSummary = {
