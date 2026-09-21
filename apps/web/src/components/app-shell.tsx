@@ -5,23 +5,44 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { getSession, logout } from "@/lib/auth";
+import { useHasPermission } from "@/lib/permissions";
 import { LanguageSwitcher } from "./language-switcher";
 import { Button } from "./ui/button";
 
 const links = [
   { href: "/dashboard", key: "dashboard" },
+  { href: "/inventory/products", key: "products" },
+  { href: "/inventory/categories", key: "categories" },
+  { href: "/inventory/units", key: "units" },
+  { href: "/inventory/stock-levels", key: "stockLevels" },
+  { href: "/inventory/stock-movements", key: "stockMovements" },
+  { href: "/inventory/stock-adjustments", key: "stockAdjustments" },
+  { href: "/inventory/stock-transfers", key: "stockTransfers" },
+  { href: "/customers", key: "customers" },
+  { href: "/debts", key: "debts" },
   { href: "/settings", key: "settings" },
   { href: "/settings/team", key: "team" },
   { href: "/settings/roles", key: "roles" },
   { href: "/settings/locations", key: "locations" },
 ] as const;
 
+const reportLinks = [
+  { href: "/reports/sales", key: "nav.sales" },
+  { href: "/reports/profit", key: "nav.profit" },
+  { href: "/reports/inventory", key: "nav.inventory" },
+  { href: "/reports/receivables", key: "nav.receivables" },
+  { href: "/reports/purchases", key: "nav.purchases" },
+  { href: "/reports/payables", key: "nav.payables" },
+] as const;
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const t = useTranslations("nav");
+  const reportsT = useTranslations("reports");
   const meta = useTranslations("meta");
   const pathname = usePathname();
   const router = useRouter();
   const session = useQuery({ queryKey: ["session"], queryFn: getSession });
+  const canReadReports = useHasPermission("reports.read");
 
   async function onLogout() {
     await logout();
@@ -45,7 +66,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
         <nav className="flex gap-2 overflow-x-auto px-4 pb-4 lg:flex-col lg:overflow-visible">
           {links.map((link) => {
-            const active = pathname === link.href;
+            const active = pathname === link.href || pathname?.startsWith(`${link.href}/`);
             return (
               <Link
                 key={link.href}
@@ -58,6 +79,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
+          {canReadReports
+            ? reportLinks.map((link) => {
+                const active = pathname === link.href || pathname?.startsWith(`${link.href}/`);
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={`whitespace-nowrap rounded-full px-4 py-2 text-sm ${
+                      active ? "bg-paper text-teal" : "text-paper/80 hover:bg-teal-dark"
+                    }`}
+                  >
+                    {reportsT(link.key)}
+                  </Link>
+                );
+              })
+            : null}
         </nav>
         <div className="hidden px-5 py-4 lg:block">
           <LanguageSwitcher />

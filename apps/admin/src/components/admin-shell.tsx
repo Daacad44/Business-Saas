@@ -9,6 +9,7 @@ import {
   Users,
   Activity,
   FileText,
+  KeySquare,
   LogOut,
   ShieldAlert,
 } from "lucide-react";
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { href: "/users", label: "Users", icon: Users },
   { href: "/system", label: "System Health", icon: Activity },
   { href: "/audit-logs", label: "Audit Logs", icon: FileText },
+  { href: "/sessions", label: "Sessions", icon: KeySquare },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
@@ -54,7 +56,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <nav className="mt-6 space-y-1">
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
-              const isActive = pathname === item.href;
+              const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
               return (
                 <Link
                   key={item.href}

@@ -18,6 +18,7 @@ export async function toSessionPayload(userId: string, businessId?: string | nul
     id: membership.id,
     businessId: membership.businessId,
     businessName: membership.business.name,
+    businessStatus: membership.business.status,
     roleId: membership.roleId,
     roleName: membership.role.name,
     roleSlug: membership.role.slug,

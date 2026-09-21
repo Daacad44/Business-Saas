@@ -12,7 +12,7 @@ import {
   setBusinessCookie,
 } from "../../lib/cookies.js";
 import { env } from "../../lib/env.js";
-import { badRequest, conflict, forbidden, unauthorized } from "../../lib/errors.js";
+import { AppError, badRequest, conflict, forbidden, unauthorized } from "../../lib/errors.js";
 import { hashPassword, verifyPassword } from "../../lib/password.js";
 import { prisma } from "../../lib/prisma.js";
 import { sendData } from "../../lib/response.js";
@@ -216,9 +216,13 @@ export async function switchBusiness(req: Request, res: Response) {
   const businessId = String(req.body?.businessId ?? "");
   const membership = await prisma.membership.findFirst({
     where: { userId: req.auth.userId, businessId, status: "ACTIVE" },
+    include: { business: true },
   });
   if (!membership) {
     throw forbidden("You are not a member of this business");
+  }
+  if (membership.business.status === "SUSPENDED") {
+    throw new AppError(403, "BUSINESS_SUSPENDED", "This business is suspended and cannot be switched into");
   }
   setBusinessCookie(res, businessId);
   return sendData(res, await toSessionPayload(req.auth.userId, businessId));

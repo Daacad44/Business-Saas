@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@daljir/database": "workspace:*",
+    "@daljir/notifications": "workspace:*",
     "@daljir/types": "workspace:*",
     "@daljir/validation": "workspace:*",
     "@prisma/client": "^6.16.2",
