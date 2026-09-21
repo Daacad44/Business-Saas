@@ -14,6 +14,7 @@ COPY packages/config/package.json ./packages/config/
 COPY packages/types/package.json ./packages/types/
 COPY packages/validation/package.json ./packages/validation/
 COPY packages/database/package.json ./packages/database/
+COPY packages/notifications/package.json ./packages/notifications/
 COPY prisma/schema.prisma ./prisma/
 
 RUN pnpm install --frozen-lockfile
