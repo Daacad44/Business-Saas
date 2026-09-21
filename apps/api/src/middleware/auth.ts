@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { ACCESS_COOKIE } from "../lib/cookies.js";
-import { unauthorized } from "../lib/errors.js";
+import { AppError, unauthorized } from "../lib/errors.js";
 import { prisma } from "../lib/prisma.js";
 import { verifyAccessToken } from "../lib/tokens.js";
 
@@ -11,7 +11,16 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
       throw unauthorized();
     }
 
-    const payload = await verifyAccessToken(token);
+    let payload: Awaited<ReturnType<typeof verifyAccessToken>>;
+    try {
+      payload = await verifyAccessToken(token);
+    } catch (error) {
+      if (error instanceof AppError) {
+        throw error;
+      }
+      throw unauthorized("Invalid access token");
+    }
+
     const session = await prisma.session.findUnique({
       where: { id: payload.sid },
     });
