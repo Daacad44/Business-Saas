@@ -373,6 +373,27 @@ export const createSalePaymentSchema = z.object({
   paidAt: z.coerce.date().optional(),
 });
 
+/**
+ * Query `status` for GET /invoices.
+ *
+ * DRAFT / ISSUED / PARTIALLY_PAID / PAID / VOID filter the stored column.
+ * OVERDUE is a query alias for the canonical calendar predicate
+ * (dueDate + timezone + amountDue > 0, status not in PAID/VOID) — it is
+ * NEVER stored. Application code never writes `InvoiceStatus.OVERDUE`.
+ */
+export const invoiceListStatusSchema = z.enum([
+  "DRAFT",
+  "ISSUED",
+  "PARTIALLY_PAID",
+  "PAID",
+  "OVERDUE",
+  "VOID",
+]);
+
+export const listInvoicesQuerySchema = z.object({
+  status: invoiceListStatusSchema.optional(),
+});
+
 // =====================================================================
 // PHASE 6 — PURCHASES
 // =====================================================================
@@ -569,6 +590,8 @@ export type CreateSaleInput = z.infer<typeof createSaleSchema>;
 export type SalesReturnItemInput = z.infer<typeof salesReturnItemInputSchema>;
 export type CreateSalesReturnInput = z.infer<typeof createSalesReturnSchema>;
 export type CreateSalePaymentInput = z.infer<typeof createSalePaymentSchema>;
+export type ListInvoicesQuery = z.infer<typeof listInvoicesQuerySchema>;
+export type InvoiceListStatus = z.infer<typeof invoiceListStatusSchema>;
 
 // Phase 6 — Purchases
 export type CreateSupplierInput = z.infer<typeof createSupplierSchema>;

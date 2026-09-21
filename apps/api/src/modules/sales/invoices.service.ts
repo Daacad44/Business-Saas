@@ -1,9 +1,10 @@
-import type { InvoiceStatus, Prisma } from "@prisma/client";
+import { listInvoicesQuerySchema } from "@daljir/validation";
 import type { Request, Response } from "express";
 import { notFound } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 import { sendData } from "../../lib/response.js";
 import { assertTenant } from "./helpers.js";
+import { buildInvoiceListWhere } from "./invoice-query.js";
 import { parsePagination, paginationMeta } from "./pagination.js";
 import { serializeDebt, serializeInvoice, serializePayment, serializeSale } from "./serialize.js";
 
@@ -15,34 +16,32 @@ async function findInvoiceForTenant(businessId: string, invoiceId: string) {
   return invoice;
 }
 
+/**
+ * Overdue is the canonical `overdueInvoiceWhere` predicate (outstanding
+ * balance + dueDate before the start of today in `Business.timezone`).
+ * Stored `InvoiceStatus.OVERDUE` is never written and is never queried.
+ * `status=OVERDUE` is an alias for that predicate, not a column match.
+ */
 export async function listInvoices(req: Request, res: Response) {
   const { tenant } = assertTenant(req);
   const pagination = parsePagination(req);
+  const { status } = listInvoicesQuerySchema.parse(req.query);
 
-  const status = typeof req.query.status === "string" ? (req.query.status as InvoiceStatus) : undefined;
   const customerId = typeof req.query.customerId === "string" ? req.query.customerId : undefined;
   const overdueOnly = req.query.overdueOnly === "true";
   const dateFrom = typeof req.query.dateFrom === "string" ? new Date(req.query.dateFrom) : undefined;
   const dateTo = typeof req.query.dateTo === "string" ? new Date(req.query.dateTo) : undefined;
   const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
 
-  const where: Prisma.InvoiceWhereInput = {
+  const where = await buildInvoiceListWhere({
     businessId: tenant.businessId,
-    ...(status ? { status } : {}),
-    ...(customerId ? { customerId } : {}),
-    ...(overdueOnly
-      ? { dueDate: { lt: new Date() }, status: { notIn: ["PAID", "VOID"] } }
-      : {}),
-    ...(search ? { invoiceNumber: { contains: search, mode: "insensitive" } } : {}),
-    ...(dateFrom || dateTo
-      ? {
-          issuedAt: {
-            ...(dateFrom ? { gte: dateFrom } : {}),
-            ...(dateTo ? { lte: dateTo } : {}),
-          },
-        }
-      : {}),
-  };
+    customerId,
+    status,
+    overdueOnly,
+    search: search || undefined,
+    dateFrom,
+    dateTo,
+  });
 
   const [invoices, total] = await Promise.all([
     prisma.invoice.findMany({
