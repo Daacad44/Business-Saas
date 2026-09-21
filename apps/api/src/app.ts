@@ -9,6 +9,7 @@ import { errorHandler } from "./middleware/error-handler.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { branchesRouter } from "./modules/branches/branches.routes.js";
 import { businessesRouter } from "./modules/businesses/businesses.routes.js";
+import { customersRouter, debtsRouter } from "./modules/customers/customers.routes.js";
 import { permissionsRouter, rolesRouter } from "./modules/roles/roles.routes.js";
 import { invitationsRouter, usersRouter } from "./modules/users/users.routes.js";
 import { warehousesRouter } from "./modules/warehouses/warehouses.routes.js";
@@ -46,6 +47,8 @@ export function createApp() {
   app.use("/api/v1/permissions", permissionsRouter);
   app.use("/api/v1/branches", branchesRouter);
   app.use("/api/v1/warehouses", warehousesRouter);
+  app.use("/api/v1/customers", customersRouter);
+  app.use("/api/v1/debts", debtsRouter);
   app.use("/api/v1/admin", adminRouter);
 
   app.use(errorHandler);
