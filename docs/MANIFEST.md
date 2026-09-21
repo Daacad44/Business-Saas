@@ -5,6 +5,7 @@
 - `02-Architecture/system-architecture.md`
 - `03-Database/data-model.md`
 - `04-API/api-blueprint.md`
+- `04-API/transactional-invariants.md`
 - `05-RBAC/rbac-matrix.md`
 - `06-Automation/automation-engine.md`
 - `07-UX-Flows/user-flows.md`
