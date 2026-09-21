@@ -14,6 +14,12 @@ function uniqueSuffix() {
   return `${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function uniquePhone() {
+  return `25${Date.now().toString().slice(-8)}${Math.floor(Math.random() * 1e5)
+    .toString()
+    .padStart(5, "0")}`.slice(0, 15);
+}
+
 const password = "CorrectHorse-1";
 
 async function registerAndOnboard(label: string) {
@@ -56,7 +62,7 @@ async function createDebt(
     data: {
       businessId,
       fullName: "Debt Test Customer",
-      phone: `25190${suffix}`.slice(0, 15),
+      phone: uniquePhone(),
       email: `debt.${suffix}@daljir.test`,
     },
   });

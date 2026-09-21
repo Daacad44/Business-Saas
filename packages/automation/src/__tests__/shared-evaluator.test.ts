@@ -12,6 +12,12 @@ function uniqueSuffix(): string {
   return `${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function uniquePhone(): string {
+  return `25${Date.now().toString().slice(-8)}${Math.floor(Math.random() * 1e5)
+    .toString()
+    .padStart(5, "0")}`.slice(0, 15);
+}
+
 function read(relPath: string): string {
   return fs.readFileSync(path.join(repoRoot, relPath), "utf8");
 }
@@ -101,7 +107,7 @@ describe("runtime proof: overdue and LOW_STOCK matching, including tenant isolat
       data: {
         businessId: params.businessId,
         fullName: "Eval Customer",
-        phone: `25290${suffix}`.slice(0, 15),
+        phone: uniquePhone(),
         email: `eval.${suffix}@daljir.test`,
       },
     });
