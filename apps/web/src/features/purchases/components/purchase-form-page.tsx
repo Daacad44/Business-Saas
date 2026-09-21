@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import * as React from "react";
-import { useFieldArray, useForm, type Resolver } from "react-hook-form";
+import { useFieldArray, useForm, useWatch, type Resolver } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/form";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -53,7 +53,7 @@ export function PurchaseFormPage() {
   });
 
   const itemsArray = useFieldArray({ control: form.control, name: "items" });
-  const selectedOrderId = form.watch("purchaseOrderId");
+  const selectedOrderId = useWatch({ control: form.control, name: "purchaseOrderId" });
   const linkedOrder = usePurchaseOrder(selectedOrderId);
   const appliedOrderId = React.useRef<string>("");
 

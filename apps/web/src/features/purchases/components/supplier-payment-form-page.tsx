@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { useTranslations } from "next-intl";
 import * as React from "react";
-import { useForm, type Resolver } from "react-hook-form";
+import { useForm, useWatch, type Resolver } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/form";
@@ -68,7 +68,7 @@ export function SupplierPaymentFormPage() {
     if (preselectedPurchaseId) form.setValue("purchaseId", preselectedPurchaseId);
   }, [preselectedSupplierId, preselectedPurchaseId, form]);
 
-  const supplierId = form.watch("supplierId");
+  const supplierId = useWatch({ control: form.control, name: "supplierId" });
   const outstandingPurchases = usePurchases({
     page: 1,
     pageSize: 100,
