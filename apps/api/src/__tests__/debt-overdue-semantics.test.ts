@@ -15,7 +15,12 @@ function idsOf(body: { data: DebtRow[] }) {
 }
 
 function overdueCountFromAgingBuckets(buckets: Record<string, { count: number }>) {
-  return buckets["1-30"].count + buckets["31-60"].count + buckets["61-90"].count + buckets["90+"].count;
+  return (
+    (buckets["1-30"]?.count ?? 0) +
+    (buckets["31-60"]?.count ?? 0) +
+    (buckets["61-90"]?.count ?? 0) +
+    (buckets["90+"]?.count ?? 0)
+  );
 }
 
 function overdueCountFromReportBuckets(buckets: Array<{ bucket: string; debtCount: number }>) {
