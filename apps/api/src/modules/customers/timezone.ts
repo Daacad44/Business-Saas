@@ -130,7 +130,8 @@ export function openOutstandingDebtWhere(): Prisma.CustomerDebtWhereInput {
  * before asOf's day.
  *
  * Always apply this `where` in the database. Do not filter by stored
- * `DebtStatus.OVERDUE`.
+ * `DebtStatus.OVERDUE`. The query string `status=OVERDUE` is an alias
+ * for this predicate (see `debtStatusQueryWhere`), not a column match.
  */
 export function overdueDebtWhere(asOf: Date, timeZone: string): Prisma.CustomerDebtWhereInput {
   return {
@@ -143,6 +144,9 @@ export function overdueDebtWhere(asOf: Date, timeZone: string): Prisma.CustomerD
  * Open debts whose `dueDate` falls on the calendar day containing `asOf`
  * in `timeZone`. Shares the outstanding-balance half of `overdueDebtWhere`
  * so "due today" and "overdue" cannot disagree about which rows are open.
+ *
+ * The query string `status=DUE_TODAY` is an alias for this predicate
+ * (see `debtStatusQueryWhere`), not a column match on a stored flag.
  */
 export function dueTodayDebtWhere(asOf: Date, timeZone: string): Prisma.CustomerDebtWhereInput {
   const { start, end } = dayBoundsInTimezone(asOf, timeZone);
@@ -150,4 +154,22 @@ export function dueTodayDebtWhere(asOf: Date, timeZone: string): Prisma.Customer
     ...openOutstandingDebtWhere(),
     dueDate: { gte: start, lt: end },
   };
+}
+
+/**
+ * Maps the calendar query aliases `status=OVERDUE` / `status=DUE_TODAY`
+ * onto the canonical predicates. Callers MUST NOT translate these values
+ * into `{ status: "OVERDUE" }` / `{ status: "DUE_TODAY" }` — those enum
+ * members are retained in the schema but are never written and are not
+ * a source of truth.
+ *
+ * `DUE_SOON` has no canonical window and is not handled here; the list
+ * endpoints reject it with 422.
+ */
+export function debtStatusQueryWhere(
+  status: "OVERDUE" | "DUE_TODAY",
+  asOf: Date,
+  timeZone: string,
+): Prisma.CustomerDebtWhereInput {
+  return status === "OVERDUE" ? overdueDebtWhere(asOf, timeZone) : dueTodayDebtWhere(asOf, timeZone);
 }

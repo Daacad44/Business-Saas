@@ -1,4 +1,4 @@
-import { createDebtPaymentSchema, remindDebtSchema } from "@daljir/validation";
+import { createDebtPaymentSchema, listDebtsQuerySchema, remindDebtSchema } from "@daljir/validation";
 import type { DebtStatus, InvoiceStatus } from "@prisma/client";
 import { Prisma } from "@prisma/client";
 import type { Request, Response } from "express";
@@ -8,6 +8,7 @@ import { conflict, forbidden, notFound } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 import { sendData } from "../../lib/response.js";
 import { recalculateCustomerBalance } from "./credit.service.js";
+import { buildDebtListWhere } from "./debt-query.js";
 import { parsePagination, paginationMeta } from "./pagination.js";
 import { money, serializeDebt, serializeDebtPayment, serializeInvoice } from "./serialize.js";
 import {
@@ -33,38 +34,20 @@ function toDecimal(value: Prisma.Decimal | string | number) {
 export async function listDebts(req: Request, res: Response) {
   const { tenant } = assertTenant(req);
   const pagination = parsePagination(req);
+  const { status } = listDebtsQuerySchema.parse(req.query);
   const customerId = typeof req.query.customerId === "string" ? req.query.customerId : undefined;
-  const status = typeof req.query.status === "string" ? (req.query.status as DebtStatus) : undefined;
   const overdueOnly = req.query.overdueOnly === "true";
   const dueDateFrom = typeof req.query.dueDateFrom === "string" ? new Date(req.query.dueDateFrom) : undefined;
   const dueDateTo = typeof req.query.dueDateTo === "string" ? new Date(req.query.dueDateTo) : undefined;
 
-  const where: Prisma.CustomerDebtWhereInput = {
+  const where = await buildDebtListWhere({
     businessId: tenant.businessId,
-    ...(customerId ? { customerId } : {}),
-    ...(status ? { status } : {}),
-  };
-
-  if (overdueOnly) {
-    const timezone = await resolveBusinessTimezone(tenant.businessId);
-    const overdue = overdueDebtWhere(new Date(), timezone);
-    where.outstandingAmount = overdue.outstandingAmount;
-    where.dueDate = overdue.dueDate;
-    // Explicit `status=` still narrows; otherwise use the canonical open-debt filter.
-    where.status = status ?? overdue.status;
-  }
-
-  if (dueDateFrom || dueDateTo) {
-    const existingDueDate =
-      where.dueDate && typeof where.dueDate === "object" && !Array.isArray(where.dueDate)
-        ? where.dueDate
-        : {};
-    where.dueDate = {
-      ...existingDueDate,
-      ...(dueDateFrom ? { gte: dueDateFrom } : {}),
-      ...(dueDateTo ? { lte: dueDateTo } : {}),
-    };
-  }
+    customerId,
+    status,
+    overdueOnly,
+    dueDateFrom,
+    dueDateTo,
+  });
 
   const [debts, total] = await Promise.all([
     prisma.customerDebt.findMany({
