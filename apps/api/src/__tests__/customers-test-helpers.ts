@@ -9,7 +9,7 @@ export function uniqueEmail(label: string) {
   return `${label}.${Date.now()}.${Math.random().toString(36).slice(2)}@daljir.test`;
 }
 
-export async function registerAndOnboard(app: Express, label: string) {
+export async function registerAndOnboard(app: Express, label: string, overrides: { timezone?: string } = {}) {
   const email = uniqueEmail(label);
   const agent = request.agent(app);
   const register = await agent.post("/api/v1/auth/register").send({
@@ -25,6 +25,7 @@ export async function registerAndOnboard(app: Express, label: string) {
     name: `${label} Trading`,
     type: "RETAIL",
     locale: "en",
+    ...(overrides.timezone ? { timezone: overrides.timezone } : {}),
     branch: { name: "Main", code: "MAIN" },
     warehouse: { name: "Main warehouse", code: "WH1" },
   });

@@ -93,6 +93,34 @@ export async function createProduct(
   });
 }
 
+export async function createWarehouse(businessId: string, branchId: string, overrides: Partial<{ name: string; code: string }> = {}) {
+  return prisma.warehouse.create({
+    data: {
+      businessId,
+      branchId,
+      name: overrides.name ?? `Warehouse ${uniqueCode("W")}`,
+      code: overrides.code ?? uniqueCode("WH"),
+    },
+  });
+}
+
+export async function createProductVariant(
+  businessId: string,
+  productId: string,
+  overrides: Partial<{ name: string; sku: string; costPrice: number; sellingPrice: number }> = {},
+) {
+  return prisma.productVariant.create({
+    data: {
+      businessId,
+      productId,
+      name: overrides.name ?? `Variant ${uniqueCode("V")}`,
+      sku: overrides.sku ?? uniqueCode("VSKU"),
+      costPrice: overrides.costPrice ?? 10,
+      sellingPrice: overrides.sellingPrice ?? 20,
+    },
+  });
+}
+
 export async function createCustomer(
   businessId: string,
   overrides: Partial<{ fullName: string; phone: string }> = {},
@@ -119,6 +147,7 @@ export async function createStockLevel(params: {
   businessId: string;
   warehouseId: string;
   productId: string;
+  variantId?: string | null;
   quantity: number;
   reorderLevel?: number | null;
 }) {
@@ -127,6 +156,7 @@ export async function createStockLevel(params: {
       businessId: params.businessId,
       warehouseId: params.warehouseId,
       productId: params.productId,
+      variantId: params.variantId ?? null,
       quantity: params.quantity,
       reorderLevel: params.reorderLevel ?? null,
     },

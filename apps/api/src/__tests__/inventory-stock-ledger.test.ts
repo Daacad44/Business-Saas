@@ -81,14 +81,14 @@ describe("stock adjustments", () => {
     expect(movements.body.data.length).toBe(1);
     expect(movements.body.data[0].id).toBe(movementId);
     expect(movements.body.data[0].type).toBe("ADJUSTMENT_IN");
-    expect(movements.body.data[0].quantity).toBe("100");
+    expect(movements.body.data[0].quantity).toBe("100.000");
 
     const levels = await tenant.agent
       .get("/api/v1/inventory/stock-levels")
       .query({ productId, warehouseId: tenant.warehouseId });
     expect(levels.status).toBe(200);
     expect(levels.body.data.length).toBe(1);
-    expect(levels.body.data[0].quantity).toBe("100");
+    expect(levels.body.data[0].quantity).toBe("100.000");
 
     // A second adjustment (a decrease) must add a second, distinct movement,
     // and the resulting StockLevel must equal the ledger sum (100 - 30 = 70).
@@ -110,7 +110,7 @@ describe("stock adjustments", () => {
     const levelAfter = await tenant.agent
       .get("/api/v1/inventory/stock-levels")
       .query({ productId, warehouseId: tenant.warehouseId });
-    expect(levelAfter.body.data[0].quantity).toBe("70");
+    expect(levelAfter.body.data[0].quantity).toBe("70.000");
   });
 
   it("rejects an adjustment that would drive stock negative", async () => {
@@ -135,7 +135,7 @@ describe("stock adjustments", () => {
     const level = await tenant.agent
       .get("/api/v1/inventory/stock-levels")
       .query({ productId, warehouseId: tenant.warehouseId });
-    expect(level.body.data[0].quantity).toBe("10");
+    expect(level.body.data[0].quantity).toBe("10.000");
 
     // And no extra movement should have been written for the rejected attempt.
     const movements = await tenant.agent.get("/api/v1/inventory/movements").query({ productId });
@@ -180,7 +180,7 @@ describe("stock transfers", () => {
     const fromLevelAfterDispatch = await tenant.agent
       .get("/api/v1/inventory/stock-levels")
       .query({ productId, warehouseId: tenant.warehouseId });
-    expect(fromLevelAfterDispatch.body.data[0].quantity).toBe("25");
+    expect(fromLevelAfterDispatch.body.data[0].quantity).toBe("25.000");
 
     const receive = await tenant.agent.post(`/api/v1/inventory/transfers/${transferId}/receive`).send({});
     expect(receive.status).toBe(200);
@@ -197,8 +197,8 @@ describe("stock transfers", () => {
     const toLevel = await tenant.agent
       .get("/api/v1/inventory/stock-levels")
       .query({ productId, warehouseId: warehouseB });
-    expect(fromLevel.body.data[0].quantity).toBe("25");
-    expect(toLevel.body.data[0].quantity).toBe("15");
+    expect(fromLevel.body.data[0].quantity).toBe("25.000");
+    expect(toLevel.body.data[0].quantity).toBe("15.000");
 
     const total = Number(fromLevel.body.data[0].quantity) + Number(toLevel.body.data[0].quantity);
     expect(total).toBe(40);
@@ -234,7 +234,7 @@ describe("stock transfers", () => {
     const toLevel = await tenant.agent
       .get("/api/v1/inventory/stock-levels")
       .query({ productId, warehouseId: warehouseB });
-    expect(toLevel.body.data[0].quantity).toBe("5");
+    expect(toLevel.body.data[0].quantity).toBe("5.000");
   });
 
   it("rejects dispatching more stock than is available", async () => {

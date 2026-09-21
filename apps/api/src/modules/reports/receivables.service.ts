@@ -2,8 +2,9 @@ import { reportAgingQuerySchema, reportCollectionsQuerySchema } from "@daljir/va
 import type { Request, Response } from "express";
 import { prisma } from "../../lib/prisma.js";
 import { sendData } from "../../lib/response.js";
+import { calendarDaysBetweenInTimezone, resolveBusinessTimezone } from "../customers/timezone.js";
 import { moneyStr, sumMoney } from "./lib/decimal.js";
-import { daysBetween, resolveRange } from "./lib/date-range.js";
+import { resolveRange } from "./lib/date-range.js";
 import { paginationMeta } from "./lib/pagination.js";
 import { assertTenant } from "./lib/tenant.js";
 import { parseReportQuery } from "./lib/validate.js";
@@ -27,6 +28,7 @@ export async function getReceivablesAging(req: Request, res: Response) {
   const { tenant } = assertTenant(req);
   const query = parseReportQuery(reportAgingQuerySchema, req.query);
   const asOf = query.asOf ?? new Date();
+  const timezone = await resolveBusinessTimezone(tenant.businessId);
 
   const debts = await prisma.customerDebt.findMany({
     where: { businessId: tenant.businessId, outstandingAmount: { gt: 0 } },
@@ -48,7 +50,11 @@ export async function getReceivablesAging(req: Request, res: Response) {
   >();
 
   for (const debt of debts) {
-    const daysOverdue = daysBetween(debt.dueDate, asOf);
+    // Same business-timezone calendar-day rule as GET /debts/aging
+    // (`calendarDaysBetweenInTimezone`). A raw 24h division of
+    // `asOf - dueDate` would disagree with due-today / overdue on
+    // debts that straddle midnight in the business timezone.
+    const daysOverdue = calendarDaysBetweenInTimezone(debt.dueDate, asOf, timezone);
     const bucket = bucketFor(daysOverdue);
     buckets[bucket] = {
       outstanding: buckets[bucket].outstanding.plus(debt.outstandingAmount),

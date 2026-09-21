@@ -153,7 +153,8 @@ describe("inventory catalog: products", () => {
     });
     expect(create.status).toBe(201);
     const productId = create.body.data.id as string;
-    expect(create.body.data.sellingPrice).toBe("1.5");
+    // Money fields always serialize as a fixed 2-decimal string, per platform convention.
+    expect(create.body.data.sellingPrice).toBe("1.50");
 
     const get = await tenant.agent.get(`/api/v1/products/${productId}`);
     expect(get.status).toBe(200);
@@ -241,7 +242,8 @@ describe("inventory catalog: products", () => {
       .patch(`/api/v1/products/${productId}/variants/${variantId}`)
       .send({ sellingPrice: 16 });
     expect(update.status).toBe(200);
-    expect(update.body.data.sellingPrice).toBe("16");
+    // Money fields always serialize as a fixed 2-decimal string, per platform convention.
+    expect(update.body.data.sellingPrice).toBe("16.00");
 
     const del = await tenant.agent.delete(`/api/v1/products/${productId}/variants/${variantId}`);
     expect(del.status).toBe(200);
@@ -267,7 +269,8 @@ describe("inventory catalog: batches", () => {
       quantity: 50,
     });
     expect(create.status).toBe(201);
-    expect(create.body.data.quantity).toBe("50");
+    // Quantity fields always serialize as a fixed 3-decimal string, per platform convention.
+    expect(create.body.data.quantity).toBe("50.000");
     expect(create.body.data.expiryDate).toBeTruthy();
 
     const list = await tenant.agent.get("/api/v1/batches").query({ productId });

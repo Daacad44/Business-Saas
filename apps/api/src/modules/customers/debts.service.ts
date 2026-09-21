@@ -10,6 +10,7 @@ import { sendData } from "../../lib/response.js";
 import { recalculateCustomerBalance } from "./credit.service.js";
 import { parsePagination, paginationMeta } from "./pagination.js";
 import { money, serializeDebt, serializeDebtPayment, serializeInvoice } from "./serialize.js";
+import { calendarDaysBetweenInTimezone, dayBoundsInTimezone, resolveBusinessTimezone } from "./timezone.js";
 
 function assertTenant(req: Request) {
   if (!req.tenant || !req.auth) {
@@ -20,12 +21,6 @@ function assertTenant(req: Request) {
 
 function toDecimal(value: Prisma.Decimal | string | number) {
   return value instanceof Prisma.Decimal ? value : new Prisma.Decimal(value);
-}
-
-function startOfDay(date = new Date()) {
-  const day = new Date(date);
-  day.setHours(0, 0, 0, 0);
-  return day;
 }
 
 export async function listDebts(req: Request, res: Response) {
@@ -65,20 +60,43 @@ export async function listDebts(req: Request, res: Response) {
   return sendData(res, debts.map(serializeDebt), 200, paginationMeta(pagination, total));
 }
 
+/**
+ * Overdue is determined from the same business-timezone calendar-day
+ * boundary as `listDueTodayDebts` and `getAgingReport`: a debt is overdue
+ * when its `dueDate` is strictly before today's start in
+ * `Business.timezone` and it is still open (not PAID/CANCELLED).
+ *
+ * The stored `CustomerDebt.status` field is still written by an out-of-
+ * scope automation job, but this endpoint must not wait on that job —
+ * otherwise a past-due debt that is still PENDING would be missing from
+ * overdue while already sitting in aging's "1-30" bucket.
+ */
 export async function listOverdueDebts(req: Request, res: Response) {
   const { tenant } = assertTenant(req);
+  const timezone = await resolveBusinessTimezone(tenant.businessId);
+  const { start: today } = dayBoundsInTimezone(new Date(), timezone);
+
   const debts = await prisma.customerDebt.findMany({
-    where: { businessId: tenant.businessId, status: "OVERDUE" },
+    where: {
+      businessId: tenant.businessId,
+      dueDate: { lt: today },
+      status: { notIn: ["PAID", "CANCELLED"] },
+    },
     orderBy: { dueDate: "asc" },
   });
   return sendData(res, debts.map(serializeDebt));
 }
 
+/**
+ * "Today" is computed as the business's own calendar day (`Business.timezone`,
+ * see `timezone.ts`), NOT the API server process's local time or UTC. A
+ * debt due at 23:59 in Mogadishu must be classified as due today even if
+ * the server's own clock (typically UTC) has already rolled past midnight.
+ */
 export async function listDueTodayDebts(req: Request, res: Response) {
   const { tenant } = assertTenant(req);
-  const today = startOfDay();
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  const timezone = await resolveBusinessTimezone(tenant.businessId);
+  const { start: today, end: tomorrow } = dayBoundsInTimezone(new Date(), timezone);
 
   const debts = await prisma.customerDebt.findMany({
     where: {
@@ -91,10 +109,21 @@ export async function listDueTodayDebts(req: Request, res: Response) {
   return sendData(res, debts.map(serializeDebt));
 }
 
+/**
+ * Bucketing uses the same business-timezone calendar-day boundary as
+ * `listDueTodayDebts` (`calendarDaysBetweenInTimezone`), not a raw
+ * millisecond division of `asOf - dueDate`. A raw division anchors "how
+ * many days overdue" to the exact instant `asOf` was captured rather than
+ * to calendar days, so a debt due at 23:59 today and re-checked at 00:01
+ * tomorrow would previously show `daysOverdue = 0` ("current") when it is
+ * actually one calendar day overdue. See `timezone.ts` for the full
+ * rationale.
+ */
 export async function getAgingReport(req: Request, res: Response) {
   const { tenant } = assertTenant(req);
   const customerId = typeof req.query.customerId === "string" ? req.query.customerId : undefined;
   const asOf = typeof req.query.asOf === "string" ? new Date(req.query.asOf) : new Date();
+  const timezone = await resolveBusinessTimezone(tenant.businessId);
 
   const debts = await prisma.customerDebt.findMany({
     where: {
@@ -122,7 +151,7 @@ export async function getAgingReport(req: Request, res: Response) {
     }
     totalOutstanding = totalOutstanding.plus(outstanding);
 
-    const daysOverdue = Math.floor((asOf.getTime() - debt.dueDate.getTime()) / (24 * 60 * 60 * 1000));
+    const daysOverdue = calendarDaysBetweenInTimezone(debt.dueDate, asOf, timezone);
     let bucketKey: keyof typeof buckets;
     if (daysOverdue <= 0) {
       bucketKey = "current";
@@ -320,7 +349,8 @@ export async function remindDebt(req: Request, res: Response) {
 
   const channel = input.channel ?? "IN_APP";
   const title = `Debt Reminder — ${debt.id}`;
-  const today = startOfDay();
+  const timezone = await resolveBusinessTimezone(tenant.businessId);
+  const { start: today } = dayBoundsInTimezone(new Date(), timezone);
 
   const result = await prisma.$transaction(async (tx) => {
     const existing = await tx.notification.findFirst({

@@ -6,3 +6,5 @@ export { stockLevelsRouter } from "./stock-levels.routes.js";
 export { stockMovementsRouter } from "./stock-movements.routes.js";
 export { stockTransfersRouter } from "./stock-transfers.routes.js";
 export { unitsRouter } from "./units.routes.js";
+export { computeStockValuation } from "./valuation.service.js";
+export type { StockValuationResult, WarehouseValuation } from "./valuation.service.js";

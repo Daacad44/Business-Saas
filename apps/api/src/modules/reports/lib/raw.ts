@@ -181,32 +181,15 @@ export async function profitByProductCount(params: { businessId: string; start: 
   return Number(rows[0]?.count ?? 0n);
 }
 
-type ValuationRow = {
-  warehouse_id: string;
-  warehouse_name: string;
-  total_quantity: Prisma.Decimal;
-  valuation: Prisma.Decimal;
-};
-
-export async function inventoryValuationByWarehouse(params: { businessId: string; warehouseId?: string }) {
-  const { businessId, warehouseId } = params;
-  const warehouseFilter = warehouseId ? Prisma.sql`AND sl."warehouseId" = ${warehouseId}` : Prisma.empty;
-  return prisma.$queryRaw<ValuationRow[]>`
-    SELECT
-      sl."warehouseId" AS warehouse_id,
-      w."name" AS warehouse_name,
-      COALESCE(SUM(sl."quantity"), 0) AS total_quantity,
-      COALESCE(SUM(sl."quantity" * COALESCE(pv."costPrice", p."costPrice")), 0) AS valuation
-    FROM "StockLevel" sl
-    JOIN "Product" p ON p.id = sl."productId" AND p."businessId" = sl."businessId"
-    JOIN "Warehouse" w ON w.id = sl."warehouseId" AND w."businessId" = sl."businessId"
-    LEFT JOIN "ProductVariant" pv ON pv.id = sl."variantId" AND pv."businessId" = sl."businessId"
-    WHERE sl."businessId" = ${businessId}
-      ${warehouseFilter}
-    GROUP BY sl."warehouseId", w."name"
-    ORDER BY w."name" ASC
-  `;
-}
+/**
+ * Deliberately NOT reimplemented here. Stock valuation used to be computed
+ * independently in this file (raw SQL `SUM(quantity * costPrice)`) and
+ * separately again in `inventory/stock-levels.service.ts` (a JS loop) —
+ * the two were never verified to agree. Both endpoints now call the single
+ * shared `computeStockValuation()` in `inventory/valuation.service.ts`.
+ * See `reports/inventory.service.ts` (`getInventoryValuation`) for the
+ * caller.
+ */
 
 type LowStockRow = {
   stock_level_id: string;
