@@ -1,3 +1,4 @@
+import { createTriggerEvaluator } from "@daljir/automation";
 import { afterAll, describe, expect, it } from "vitest";
 import request from "supertest";
 import { createApp } from "../app.js";
@@ -11,6 +12,12 @@ function uniqueEmail(label: string) {
 
 function uniqueSuffix() {
   return `${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function uniquePhone() {
+  return `25${Date.now().toString().slice(-8)}${Math.floor(Math.random() * 1e5)
+    .toString()
+    .padStart(5, "0")}`.slice(0, 15);
 }
 
 const password = "CorrectHorse-1";
@@ -55,7 +62,7 @@ async function createDebt(
     data: {
       businessId,
       fullName: "Debt Test Customer",
-      phone: `25190${suffix}`.slice(0, 15),
+      phone: uniquePhone(),
       email: `debt.${suffix}@daljir.test`,
     },
   });
@@ -303,6 +310,116 @@ describe("automation rules", () => {
 
       const dryRun = await tenantB.agent.post(`/api/v1/automation/rules/${ruleId}/test`).send({ debtId: debt.id });
       expect(dryRun.status).toBe(404);
+    });
+
+    it("returns the same overdue match set as the shared evaluator and isolates tenants", async () => {
+      const tenantA = await registerAndOnboard("AutoEvalAgreeOverdueA");
+      const tenantB = await registerAndOnboard("AutoEvalAgreeOverdueB");
+      const evaluator = createTriggerEvaluator({ prisma });
+
+      const yesterday = new Date(Date.now() - 36 * 60 * 60 * 1000);
+      const tomorrow = new Date(Date.now() + 36 * 60 * 60 * 1000);
+
+      const { debt: overdueA } = await createDebt(tenantA.businessId, tenantA.branchId, tenantA.warehouseId, {
+        dueDate: yesterday,
+      });
+      const { debt: futureA } = await createDebt(tenantA.businessId, tenantA.branchId, tenantA.warehouseId, {
+        dueDate: tomorrow,
+      });
+      const { debt: storedOverdueFutureA } = await createDebt(
+        tenantA.businessId,
+        tenantA.branchId,
+        tenantA.warehouseId,
+        { dueDate: tomorrow },
+      );
+      await prisma.customerDebt.update({
+        where: { id: storedOverdueFutureA.id },
+        data: { status: "OVERDUE" },
+      });
+      const { debt: overdueB } = await createDebt(tenantB.businessId, tenantB.branchId, tenantB.warehouseId, {
+        dueDate: yesterday,
+      });
+
+      const create = await tenantA.agent.post("/api/v1/automation/rules").send({
+        name: "Shared overdue evaluator",
+        triggers: [{ type: "INVOICE_OVERDUE", config: {} }],
+        actions: [{ type: "CREATE_NOTIFICATION", order: 0, config: {} }],
+      });
+      expect(create.status).toBe(201);
+      const ruleId = create.body.data.id as string;
+
+      const dryRun = await tenantA.agent.post(`/api/v1/automation/rules/${ruleId}/test`).send({});
+      expect(dryRun.status).toBe(200);
+
+      const evalMatches = await evaluator.findMatchingDebts(tenantA.businessId, {
+        type: "INVOICE_OVERDUE",
+        offsetDays: null,
+      });
+
+      const dryIds = (dryRun.body.data.triggers[0].matchedDebts as Array<{ id: string }>)
+        .map((d) => d.id)
+        .sort();
+      const evalIds = evalMatches.map((d) => d.id).sort();
+
+      expect(dryIds).toEqual(evalIds);
+      expect(dryIds).toContain(overdueA.id);
+      expect(dryIds).not.toContain(futureA.id);
+      expect(dryIds).not.toContain(storedOverdueFutureA.id);
+      expect(dryIds).not.toContain(overdueB.id);
+      expect(evalMatches.every((d) => d.businessId === tenantA.businessId)).toBe(true);
+    });
+
+    it("returns the same LOW_STOCK match set as the shared evaluator and isolates tenants", async () => {
+      const tenantA = await registerAndOnboard("AutoEvalAgreeStockA");
+      const tenantB = await registerAndOnboard("AutoEvalAgreeStockB");
+      const evaluator = createTriggerEvaluator({ prisma });
+
+      async function createStock(businessId: string, warehouseId: string, quantity: number, threshold: number) {
+        const suffix = uniqueSuffix();
+        const product = await prisma.product.create({
+          data: {
+            businessId,
+            name: `Stock ${suffix}`,
+            sku: `SKU-${suffix}`,
+            sellingPrice: 10,
+            costPrice: 5,
+            trackStock: true,
+            lowStockThreshold: threshold,
+          },
+        });
+        const level = await prisma.stockLevel.create({
+          data: { businessId, warehouseId, productId: product.id, quantity },
+        });
+        return level;
+      }
+
+      const lowA = await createStock(tenantA.businessId, tenantA.warehouseId, 2, 10);
+      const okA = await createStock(tenantA.businessId, tenantA.warehouseId, 40, 10);
+      const lowB = await createStock(tenantB.businessId, tenantB.warehouseId, 1, 10);
+
+      const create = await tenantA.agent.post("/api/v1/automation/rules").send({
+        name: "Shared low-stock evaluator",
+        triggers: [{ type: "LOW_STOCK", config: {} }],
+        actions: [{ type: "CREATE_NOTIFICATION", order: 0, config: {} }],
+      });
+      expect(create.status).toBe(201);
+      const ruleId = create.body.data.id as string;
+
+      const dryRun = await tenantA.agent.post(`/api/v1/automation/rules/${ruleId}/test`).send({});
+      expect(dryRun.status).toBe(200);
+
+      const evalMatches = await evaluator.findLowStockMatches(tenantA.businessId);
+      const dryIds = (dryRun.body.data.triggers[0].matchedStockLevels as Array<{ stockLevelId: string }>)
+        .map((m) => m.stockLevelId)
+        .sort();
+      const evalIds = evalMatches.map((m) => m.stockLevelId).sort();
+
+      expect(dryRun.body.data.triggers[0].matchedCount).toBe(evalMatches.length);
+      expect(dryIds).toEqual(evalIds);
+      expect(dryIds).toContain(lowA.id);
+      expect(dryIds).not.toContain(okA.id);
+      expect(dryIds).not.toContain(lowB.id);
+      expect(evalMatches.every((m) => m.businessId === tenantA.businessId)).toBe(true);
     });
   });
 });

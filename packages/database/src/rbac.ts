@@ -1,5 +1,6 @@
 import type { PermissionKey, RoleSlug } from "@daljir/types";
 
+/** Global authorization catalog. Migrations do not insert these rows; `syncReferenceData` does. */
 export const PERMISSION_CATALOG: Array<{
   key: PermissionKey;
   family: string;

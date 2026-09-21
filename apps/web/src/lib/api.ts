@@ -75,6 +75,28 @@ export async function apiPaginated<T>(
   };
 }
 
+/**
+ * Like `apiPaginated`, but keeps extra meta keys (e.g. payables
+ * `totalOutstanding`) instead of discarding them.
+ */
+export async function apiWithMeta<T, M extends Record<string, unknown> = Record<string, unknown>>(
+  path: string,
+  init?: RequestInit,
+): Promise<{ data: T; meta: PaginationMeta & M }> {
+  const json = await request<T>(path, init);
+  const meta = (json.meta ?? {}) as Partial<PaginationMeta> & M;
+  return {
+    data: json.data,
+    meta: {
+      ...meta,
+      page: meta.page ?? 1,
+      pageSize: meta.pageSize ?? 20,
+      total: meta.total ?? 0,
+      totalPages: meta.totalPages ?? 1,
+    },
+  };
+}
+
 export function buildQuery(params: Record<string, string | number | boolean | undefined | null>): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {

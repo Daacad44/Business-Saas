@@ -11,6 +11,9 @@ import { Button } from "./ui/button";
 
 const links = [
   { href: "/dashboard", key: "dashboard" },
+  { href: "/pos", key: "pos" },
+  { href: "/sales", key: "sales" },
+  { href: "/invoices", key: "invoices" },
   { href: "/inventory/products", key: "products" },
   { href: "/inventory/categories", key: "categories" },
   { href: "/inventory/units", key: "units" },
@@ -20,6 +23,14 @@ const links = [
   { href: "/inventory/stock-transfers", key: "stockTransfers" },
   { href: "/customers", key: "customers" },
   { href: "/debts", key: "debts" },
+  { href: "/suppliers", key: "suppliers" },
+  { href: "/purchase-orders", key: "purchaseOrders" },
+  { href: "/purchases", key: "purchases" },
+  { href: "/purchases/returns", key: "purchaseReturns" },
+  { href: "/payments", key: "payments" },
+  { href: "/payables", key: "payables" },
+  { href: "/expenses", key: "expenses" },
+  { href: "/expenses/categories", key: "expenseCategories" },
   { href: "/settings", key: "settings" },
   { href: "/settings/team", key: "team" },
   { href: "/settings/roles", key: "roles" },
@@ -34,6 +45,16 @@ const reportLinks = [
   { href: "/reports/purchases", key: "nav.purchases" },
   { href: "/reports/payables", key: "nav.payables" },
 ] as const;
+
+function isNavActive(pathname: string | null, href: string) {
+  if (!pathname) return false;
+  if (href === "/purchases") {
+    if (pathname === "/purchases" || pathname.startsWith("/purchases/new")) return true;
+    if (pathname.startsWith("/purchases/returns")) return false;
+    return pathname.startsWith("/purchases/");
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const t = useTranslations("nav");
@@ -66,7 +87,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
         <nav className="flex gap-2 overflow-x-auto px-4 pb-4 lg:flex-col lg:overflow-visible">
           {links.map((link) => {
-            const active = pathname === link.href || pathname?.startsWith(`${link.href}/`);
+            const active = isNavActive(pathname, link.href);
             return (
               <Link
                 key={link.href}

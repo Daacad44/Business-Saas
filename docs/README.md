@@ -19,6 +19,8 @@ Credit sales automatically become debt records with due dates. The automation en
 - Infrastructure: Docker, Coolify, VPS, Cloudflare, object storage
 - Architecture: Multi-tenant SaaS with strict tenant isolation
 
+Permission catalog (reference data, required in every environment) is documented in `03-Database/reference-data.md`. Demo seed is not a production deploy step.
+
 ## Primary Build Order
 1. Architecture & product specification
 2. Multi-tenancy

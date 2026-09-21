@@ -506,3 +506,82 @@ A debt returned from `GET /debts?status=OVERDUE` still serializes
 settlement status, not the calendar classification. Clients that need
 "is this overdue" should use the filter / dedicated endpoints, not
 compare the serialized `status` to `"OVERDUE"`.
+
+## Overdue invoices are derived the same way
+
+Source: `apps/api/src/modules/sales/invoice-query.ts`, composed into
+`GET /invoices` by `apps/api/src/modules/sales/invoices.service.ts`.
+
+An invoice is **overdue** when, in the business's own timezone
+(`Business.timezone`, IANA string, default `Africa/Mogadishu`):
+
+1. it still has a **positive outstanding balance** (`amountDue > 0`,
+   compared as `Prisma.Decimal` — never floating point), and
+2. its `dueDate` is **strictly before** the start of the calendar day
+   containing "now" (or the caller's `asOf`), using the same
+   `startOfDayInTimezone` helper debts use — **not** a second
+   day-boundary and **not** `dueDate < now` as an instant.
+
+Invoices have no `CANCELLED` member. The settlement statuses the sales
+write path actually writes are `ISSUED`, `PARTIALLY_PAID`, and `PAID`;
+payments also reject `VOID`. Open invoices therefore exclude
+`{PAID, VOID}` — `VOID` is the invoice analogue of debt `CANCELLED`.
+
+## `InvoiceStatus.OVERDUE` is a dead value
+
+The Postgres / Prisma enum still contains `OVERDUE` (and `DRAFT`) next
+to the settlement statuses that **are** written.
+
+**This is a deliberate decision with a recorded rationale, identical to
+`DebtStatus.OVERDUE`.** Removing a value from a Postgres enum is not an
+additive migration — it requires recreating the type and rewriting the
+column. The payoff would only be cleanliness.
+
+So:
+
+- `InvoiceStatus.OVERDUE` is retained in the schema but is **NEVER
+  written** by application code and **must not be read as a source of
+  truth**.
+- Do not add a cron / automation / dunning job that transitions invoice
+  rows into `InvoiceStatus.OVERDUE`. That job would reintroduce two
+  competing definitions (the stored flag vs the live predicate) and the
+  stored flag would go stale the moment a calendar day rolls over in
+  the business timezone.
+- Any future invoice list, dashboard, or report figure **must** use the
+  canonical helpers below rather than a denormalized flag.
+
+## Canonical invoice helpers
+
+All live in `apps/api/src/modules/sales/invoice-query.ts`, built on
+`startOfDayInTimezone` / `resolveBusinessTimezone` from
+`apps/api/src/modules/customers/timezone.ts`:
+
+| Helper | Meaning |
+| --- | --- |
+| `openOutstandingInvoiceWhere()` | Positive `amountDue`, status not in `{PAID, VOID}` |
+| `overdueInvoiceWhere(asOf, timeZone)` | Open + `dueDate` before start of `asOf`'s business calendar day |
+| `buildInvoiceListWhere(...)` | List composition; `status=OVERDUE` and `overdueOnly` both map onto `overdueInvoiceWhere` |
+
+Do not copy a `dueDate < now` filter into a new module; import the
+helper.
+
+## Invoice surfaces that must agree
+
+These two are the same overdue set. There is no dedicated
+`/invoices/overdue` route, and `GET /reports/dashboard` →
+`overdueDebtCount` is a **debt** figure (`overdueDebtWhere`), not an
+invoice overdue aggregate — it must not be treated as a second invoice
+cut.
+
+1. `GET /invoices?overdueOnly=true`
+2. `GET /invoices?status=OVERDUE`
+
+`status=OVERDUE` maps onto `overdueInvoiceWhere`, so a frontend that
+builds its status dropdown from the `InvoiceStatus` type gets the live
+overdue set rather than a silently empty list (the column is never
+written). Stored settlement statuses (`ISSUED`, `PARTIALLY_PAID`,
+`PAID`, `VOID`, `DRAFT`) still filter the column.
+
+An invoice returned from `GET /invoices?status=OVERDUE` still
+serializes `status: "ISSUED"` or `"PARTIALLY_PAID"`. That field is the
+stored settlement status, not the calendar classification.

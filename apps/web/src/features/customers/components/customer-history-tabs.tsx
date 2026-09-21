@@ -2,24 +2,15 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Badge } from "@/components/ui/badge";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { Pagination } from "@/components/ui/pagination";
 import { formatDateTime, formatMoney } from "@/lib/format";
 import { userFacingError } from "@/lib/form-resolver";
 import { useCustomerDebts, useCustomerPayments, useCustomerSales } from "@/features/customers/hooks";
+import { DebtStatusBadges } from "@/features/debts/components/debt-status-badges";
+import { useBusinessTimezone } from "@/features/debts/hooks";
 import { useListState } from "@/features/inventory/lib/list-state";
-import type { CustomerDebtSummary, DebtPaymentSummary, DebtStatus, SaleSummary } from "@daljir/types";
-
-const DEBT_STATUS_VARIANT: Record<DebtStatus, "neutral" | "info" | "warning" | "danger" | "success"> = {
-  PENDING: "neutral",
-  DUE_SOON: "info",
-  DUE_TODAY: "warning",
-  OVERDUE: "danger",
-  PARTIALLY_PAID: "info",
-  PAID: "success",
-  CANCELLED: "neutral",
-};
+import type { CustomerDebtSummary, DebtPaymentSummary, SaleSummary } from "@daljir/types";
 
 export function CustomerSalesTab({ customerId }: { customerId: string }) {
   const t = useTranslations("customers");
@@ -65,6 +56,7 @@ export function CustomerDebtsTab({ customerId }: { customerId: string }) {
   const td = useTranslations("debts");
   const tc = useTranslations("common");
   const debts = useCustomerDebts(customerId);
+  const { timeZone } = useBusinessTimezone();
 
   const columns: DataTableColumn<CustomerDebtSummary>[] = [
     {
@@ -87,7 +79,14 @@ export function CustomerDebtsTab({ customerId }: { customerId: string }) {
       id: "status",
       header: td("statusLabel"),
       align: "center",
-      accessor: (row) => <Badge variant={DEBT_STATUS_VARIANT[row.status]}>{td(`status.${row.status}`)}</Badge>,
+      accessor: (row) => (
+        <DebtStatusBadges
+          status={row.status}
+          dueDate={row.dueDate}
+          outstandingAmount={row.outstandingAmount}
+          timeZone={timeZone}
+        />
+      ),
     },
   ];
 

@@ -1,10 +1,9 @@
 "use client";
 
-import type { CustomerDebtSummary, DebtStatus } from "@daljir/types";
+import type { CustomerDebtSummary } from "@daljir/types";
 import Link from "next/link";
 import * as React from "react";
 import { useTranslations } from "next-intl";
-import { Badge } from "@/components/ui/badge";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
@@ -17,27 +16,15 @@ import { formatMoney, formatDate } from "@/lib/format";
 import { userFacingError } from "@/lib/form-resolver";
 import { useCustomers } from "@/features/customers/hooks";
 import { useListState } from "@/features/inventory/lib/list-state";
-import { useAgingReport, useDebts, useDueTodayDebts, useOverdueDebts } from "@/features/debts/hooks";
-
-const STATUSES: DebtStatus[] = [
-  "PENDING",
-  "DUE_SOON",
-  "DUE_TODAY",
-  "OVERDUE",
-  "PARTIALLY_PAID",
-  "PAID",
-  "CANCELLED",
-];
-
-const STATUS_VARIANT: Record<DebtStatus, "neutral" | "info" | "warning" | "danger" | "success"> = {
-  PENDING: "neutral",
-  DUE_SOON: "info",
-  DUE_TODAY: "warning",
-  OVERDUE: "danger",
-  PARTIALLY_PAID: "info",
-  PAID: "success",
-  CANCELLED: "neutral",
-};
+import { DEBT_STATUS_FILTERS } from "@/features/debts/calendar";
+import { DebtStatusBadges } from "@/features/debts/components/debt-status-badges";
+import {
+  useAgingReport,
+  useBusinessTimezone,
+  useDebts,
+  useDueTodayDebts,
+  useOverdueDebts,
+} from "@/features/debts/hooks";
 
 interface Filters {
   customerId: string;
@@ -48,7 +35,7 @@ interface Filters {
   [key: string]: string;
 }
 
-function useDebtColumns(customerNameById: Map<string, string>) {
+function useDebtColumns(customerNameById: Map<string, string>, timeZone?: string) {
   const t = useTranslations("debts");
   const columns: DataTableColumn<CustomerDebtSummary>[] = [
     {
@@ -76,7 +63,14 @@ function useDebtColumns(customerNameById: Map<string, string>) {
       id: "status",
       header: t("statusLabel"),
       align: "center",
-      accessor: (row) => <Badge variant={STATUS_VARIANT[row.status]}>{t(`status.${row.status}`)}</Badge>,
+      accessor: (row) => (
+        <DebtStatusBadges
+          status={row.status}
+          dueDate={row.dueDate}
+          outstandingAmount={row.outstandingAmount}
+          timeZone={timeZone}
+        />
+      ),
     },
   ];
   return columns;
@@ -110,8 +104,9 @@ export function DebtsPage() {
   const overdueDebts = useOverdueDebts();
   const dueTodayDebts = useDueTodayDebts();
   const aging = useAgingReport();
+  const { timeZone } = useBusinessTimezone();
 
-  const columns = useDebtColumns(customerNameById);
+  const columns = useDebtColumns(customerNameById, timeZone);
 
   return (
     <div>
@@ -153,7 +148,7 @@ export function DebtsPage() {
             onChange={(event) => setFilter("status", event.target.value)}
           >
             <option value="">{t("allStatuses")}</option>
-            {STATUSES.map((status) => (
+            {DEBT_STATUS_FILTERS.map((status) => (
               <option key={status} value={status}>
                 {t(`status.${status}`)}
               </option>

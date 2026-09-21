@@ -1,5 +1,6 @@
 import type { CreateDebtPaymentInput, RemindDebtInput } from "@daljir/validation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import * as debtsApi from "./api";
 
 export const debtKeys = {
@@ -32,6 +33,22 @@ export function useAgingReport(customerId?: string) {
 
 export function useDebt(id: string) {
   return useQuery({ queryKey: debtKeys.detail(id), queryFn: () => debtsApi.getDebt(id) });
+}
+
+/**
+ * `Business.timezone` — the same IANA zone the API uses for overdue /
+ * due-today. Shared cache key with the settings page (`["business"]`).
+ * Callers fall back to omitting the calendar badge until this resolves
+ * rather than classifying in the browser's local zone.
+ */
+export function useBusinessTimezone() {
+  const query = useQuery({
+    queryKey: ["business"],
+    queryFn: () => api<{ timezone: string }>("/businesses/current"),
+    staleTime: 60_000,
+  });
+  const trimmed = query.data?.timezone?.trim();
+  return { ...query, timeZone: trimmed || undefined };
 }
 
 function invalidateDebtSideEffects(queryClient: ReturnType<typeof useQueryClient>, debtId: string) {
