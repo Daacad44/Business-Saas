@@ -299,6 +299,32 @@ export const remindDebtSchema = z.object({
   message: z.string().trim().max(1000).optional(),
 });
 
+/**
+ * Query `status` for GET /debts and GET /customers/:id/debts.
+ *
+ * PENDING / PARTIALLY_PAID / PAID / CANCELLED are stored settlement
+ * statuses and filter the column.
+ *
+ * OVERDUE and DUE_TODAY are query aliases for the canonical calendar
+ * predicates (dueDate + timezone + outstanding balance) — they are
+ * NEVER stored. DUE_SOON is accepted here so the API can reject it
+ * with a 422 naming the supported alternatives, instead of a generic
+ * 400 enum error or a silently empty list.
+ */
+export const debtListStatusSchema = z.enum([
+  "PENDING",
+  "DUE_SOON",
+  "DUE_TODAY",
+  "OVERDUE",
+  "PARTIALLY_PAID",
+  "PAID",
+  "CANCELLED",
+]);
+
+export const listDebtsQuerySchema = z.object({
+  status: debtListStatusSchema.optional(),
+});
+
 // =====================================================================
 // PHASE 3 — SALES & POS
 // =====================================================================
@@ -534,6 +560,8 @@ export type CreateCustomerAddressInput = z.infer<typeof createCustomerAddressSch
 export type CreateCustomerNoteInput = z.infer<typeof createCustomerNoteSchema>;
 export type CreateDebtPaymentInput = z.infer<typeof createDebtPaymentSchema>;
 export type RemindDebtInput = z.infer<typeof remindDebtSchema>;
+export type ListDebtsQuery = z.infer<typeof listDebtsQuerySchema>;
+export type DebtListStatus = z.infer<typeof debtListStatusSchema>;
 
 // Phase 3 — Sales & POS
 export type SaleItemInput = z.infer<typeof saleItemInputSchema>;

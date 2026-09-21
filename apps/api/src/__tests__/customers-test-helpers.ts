@@ -91,10 +91,14 @@ export async function createDebtFixture(args: {
   principal: string;
   dueDate?: Date;
   status?: DebtStatus;
+  outstandingAmount?: string;
+  amountPaid?: string;
 }) {
   fixtureCounter += 1;
   const suffix = `${Date.now()}-${fixtureCounter}`;
   const dueDate = args.dueDate ?? new Date();
+  const outstandingAmount = args.outstandingAmount ?? args.principal;
+  const amountPaid = args.amountPaid ?? "0";
 
   const sale = await prisma.sale.create({
     data: {
@@ -130,7 +134,8 @@ export async function createDebtFixture(args: {
       customerId: args.customerId,
       invoiceId: invoice.id,
       principalAmount: args.principal,
-      outstandingAmount: args.principal,
+      amountPaid,
+      outstandingAmount,
       dueDate,
       status: args.status ?? "PENDING",
     },
@@ -138,7 +143,7 @@ export async function createDebtFixture(args: {
 
   await prisma.customer.update({
     where: { id: args.customerId },
-    data: { currentBalance: { increment: args.principal } },
+    data: { currentBalance: { increment: outstandingAmount } },
   });
 
   return { sale, invoice, debt };

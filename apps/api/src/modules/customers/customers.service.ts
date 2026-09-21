@@ -2,6 +2,7 @@ import {
   createCustomerAddressSchema,
   createCustomerNoteSchema,
   createCustomerSchema,
+  listDebtsQuerySchema,
   updateCustomerSchema,
 } from "@daljir/validation";
 import { Prisma } from "@prisma/client";
@@ -12,6 +13,7 @@ import { conflict, forbidden, notFound } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 import { sendData } from "../../lib/response.js";
 import { checkCreditEligibility } from "./credit.service.js";
+import { buildDebtListWhere } from "./debt-query.js";
 import { parsePagination, paginationMeta } from "./pagination.js";
 import { money, serializeCustomer, serializeDebt, serializeDebtPayment, serializeSale } from "./serialize.js";
 
@@ -365,8 +367,14 @@ export async function createNote(req: Request, res: Response) {
 export async function listCustomerDebts(req: Request, res: Response) {
   const { tenant } = assertTenant(req);
   const customer = await findCustomerOr404(tenant.businessId, req.params.id as string);
+  const { status } = listDebtsQuerySchema.parse(req.query);
+  const where = await buildDebtListWhere({
+    businessId: tenant.businessId,
+    customerId: customer.id,
+    status,
+  });
   const debts = await prisma.customerDebt.findMany({
-    where: { businessId: tenant.businessId, customerId: customer.id },
+    where,
     orderBy: { dueDate: "asc" },
   });
   return sendData(res, debts.map(serializeDebt));

@@ -1,6 +1,11 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const ZERO = new Prisma.Decimal(0);
+
+/** Prisma client or an interactive-transaction client — both expose the same model delegates. */
+type DbClient = { business: { findUnique: typeof prisma.business.findUnique } };
 
 /**
  * `Business.timezone` (`prisma/schema.prisma`, IANA string, defaults to
@@ -12,8 +17,11 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * reported as due tomorrow (or vice versa) purely because the API
  * container's clock/timezone doesn't match the business's own timezone.
  */
-export async function resolveBusinessTimezone(businessId: string): Promise<string> {
-  const business = await prisma.business.findUnique({
+export async function resolveBusinessTimezone(
+  businessId: string,
+  db: DbClient = prisma,
+): Promise<string> {
+  const business = await db.business.findUnique({
     where: { id: businessId },
     select: { timezone: true },
   });
@@ -89,4 +97,79 @@ export function calendarDaysBetweenInTimezone(earlier: Date, later: Date, timeZo
   const earlierStart = startOfDayInTimezone(earlier, timeZone).getTime();
   const laterStart = startOfDayInTimezone(later, timeZone).getTime();
   return Math.round((laterStart - earlierStart) / DAY_MS);
+}
+
+/**
+ * An "open" debt still has an outstanding balance. Money is compared as
+ * `Prisma.Decimal` (never JS float). `PAID` / `CANCELLED` are excluded
+ * because those statuses ARE written by payment / settlement paths.
+ *
+ * `DebtStatus.OVERDUE`, `DUE_SOON`, and `DUE_TODAY` are NOT part of this
+ * filter — nothing in the codebase writes them, so they must never be
+ * treated as source of truth.
+ */
+export function openOutstandingDebtWhere(): Prisma.CustomerDebtWhereInput {
+  return {
+    outstandingAmount: { gt: ZERO },
+    status: { notIn: ["PAID", "CANCELLED"] },
+  };
+}
+
+/**
+ * Canonical overdue predicate — the single source of truth for every
+ * list, count, aging bucket, credit check, and dashboard figure.
+ *
+ * A debt is overdue iff it still has an outstanding balance AND its
+ * `dueDate` is strictly before the start of the calendar day containing
+ * `asOf` in `timeZone` (the business timezone).
+ *
+ * Equivalence: for any open debt, this matches
+ * `calendarDaysBetweenInTimezone(dueDate, asOf, timeZone) > 0`, because
+ * a dueDate always falls on or after the start of its own calendar day,
+ * so `dueDate < startOfDay(asOf)` iff the dueDate's day is strictly
+ * before asOf's day.
+ *
+ * Always apply this `where` in the database. Do not filter by stored
+ * `DebtStatus.OVERDUE`. The query string `status=OVERDUE` is an alias
+ * for this predicate (see `debtStatusQueryWhere`), not a column match.
+ */
+export function overdueDebtWhere(asOf: Date, timeZone: string): Prisma.CustomerDebtWhereInput {
+  return {
+    ...openOutstandingDebtWhere(),
+    dueDate: { lt: startOfDayInTimezone(asOf, timeZone) },
+  };
+}
+
+/**
+ * Open debts whose `dueDate` falls on the calendar day containing `asOf`
+ * in `timeZone`. Shares the outstanding-balance half of `overdueDebtWhere`
+ * so "due today" and "overdue" cannot disagree about which rows are open.
+ *
+ * The query string `status=DUE_TODAY` is an alias for this predicate
+ * (see `debtStatusQueryWhere`), not a column match on a stored flag.
+ */
+export function dueTodayDebtWhere(asOf: Date, timeZone: string): Prisma.CustomerDebtWhereInput {
+  const { start, end } = dayBoundsInTimezone(asOf, timeZone);
+  return {
+    ...openOutstandingDebtWhere(),
+    dueDate: { gte: start, lt: end },
+  };
+}
+
+/**
+ * Maps the calendar query aliases `status=OVERDUE` / `status=DUE_TODAY`
+ * onto the canonical predicates. Callers MUST NOT translate these values
+ * into `{ status: "OVERDUE" }` / `{ status: "DUE_TODAY" }` — those enum
+ * members are retained in the schema but are never written and are not
+ * a source of truth.
+ *
+ * `DUE_SOON` has no canonical window and is not handled here; the list
+ * endpoints reject it with 422.
+ */
+export function debtStatusQueryWhere(
+  status: "OVERDUE" | "DUE_TODAY",
+  asOf: Date,
+  timeZone: string,
+): Prisma.CustomerDebtWhereInput {
+  return status === "OVERDUE" ? overdueDebtWhere(asOf, timeZone) : dueTodayDebtWhere(asOf, timeZone);
 }

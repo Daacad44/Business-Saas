@@ -1,4 +1,4 @@
-import { createDebtPaymentSchema, remindDebtSchema } from "@daljir/validation";
+import { createDebtPaymentSchema, listDebtsQuerySchema, remindDebtSchema } from "@daljir/validation";
 import type { DebtStatus, InvoiceStatus } from "@prisma/client";
 import { Prisma } from "@prisma/client";
 import type { Request, Response } from "express";
@@ -8,9 +8,17 @@ import { conflict, forbidden, notFound } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 import { sendData } from "../../lib/response.js";
 import { recalculateCustomerBalance } from "./credit.service.js";
+import { buildDebtListWhere } from "./debt-query.js";
 import { parsePagination, paginationMeta } from "./pagination.js";
 import { money, serializeDebt, serializeDebtPayment, serializeInvoice } from "./serialize.js";
-import { calendarDaysBetweenInTimezone, dayBoundsInTimezone, resolveBusinessTimezone } from "./timezone.js";
+import {
+  calendarDaysBetweenInTimezone,
+  dayBoundsInTimezone,
+  dueTodayDebtWhere,
+  openOutstandingDebtWhere,
+  overdueDebtWhere,
+  resolveBusinessTimezone,
+} from "./timezone.js";
 
 function assertTenant(req: Request) {
   if (!req.tenant || !req.auth) {
@@ -26,26 +34,20 @@ function toDecimal(value: Prisma.Decimal | string | number) {
 export async function listDebts(req: Request, res: Response) {
   const { tenant } = assertTenant(req);
   const pagination = parsePagination(req);
+  const { status } = listDebtsQuerySchema.parse(req.query);
   const customerId = typeof req.query.customerId === "string" ? req.query.customerId : undefined;
-  const status = typeof req.query.status === "string" ? (req.query.status as DebtStatus) : undefined;
   const overdueOnly = req.query.overdueOnly === "true";
   const dueDateFrom = typeof req.query.dueDateFrom === "string" ? new Date(req.query.dueDateFrom) : undefined;
   const dueDateTo = typeof req.query.dueDateTo === "string" ? new Date(req.query.dueDateTo) : undefined;
 
-  const where: Prisma.CustomerDebtWhereInput = {
+  const where = await buildDebtListWhere({
     businessId: tenant.businessId,
-    ...(customerId ? { customerId } : {}),
-    ...(status ? { status } : {}),
-    ...(overdueOnly ? { status: "OVERDUE" } : {}),
-    ...(dueDateFrom || dueDateTo
-      ? {
-          dueDate: {
-            ...(dueDateFrom ? { gte: dueDateFrom } : {}),
-            ...(dueDateTo ? { lte: dueDateTo } : {}),
-          },
-        }
-      : {}),
-  };
+    customerId,
+    status,
+    overdueOnly,
+    dueDateFrom,
+    dueDateTo,
+  });
 
   const [debts, total] = await Promise.all([
     prisma.customerDebt.findMany({
@@ -61,26 +63,18 @@ export async function listDebts(req: Request, res: Response) {
 }
 
 /**
- * Overdue is determined from the same business-timezone calendar-day
- * boundary as `listDueTodayDebts` and `getAgingReport`: a debt is overdue
- * when its `dueDate` is strictly before today's start in
- * `Business.timezone` and it is still open (not PAID/CANCELLED).
- *
- * The stored `CustomerDebt.status` field is still written by an out-of-
- * scope automation job, but this endpoint must not wait on that job —
- * otherwise a past-due debt that is still PENDING would be missing from
- * overdue while already sitting in aging's "1-30" bucket.
+ * Overdue is the canonical `overdueDebtWhere` predicate (outstanding
+ * balance + dueDate before the start of today in `Business.timezone`).
+ * Stored `DebtStatus.OVERDUE` is never written and is never queried.
  */
 export async function listOverdueDebts(req: Request, res: Response) {
   const { tenant } = assertTenant(req);
   const timezone = await resolveBusinessTimezone(tenant.businessId);
-  const { start: today } = dayBoundsInTimezone(new Date(), timezone);
 
   const debts = await prisma.customerDebt.findMany({
     where: {
       businessId: tenant.businessId,
-      dueDate: { lt: today },
-      status: { notIn: ["PAID", "CANCELLED"] },
+      ...overdueDebtWhere(new Date(), timezone),
     },
     orderBy: { dueDate: "asc" },
   });
@@ -96,13 +90,11 @@ export async function listOverdueDebts(req: Request, res: Response) {
 export async function listDueTodayDebts(req: Request, res: Response) {
   const { tenant } = assertTenant(req);
   const timezone = await resolveBusinessTimezone(tenant.businessId);
-  const { start: today, end: tomorrow } = dayBoundsInTimezone(new Date(), timezone);
 
   const debts = await prisma.customerDebt.findMany({
     where: {
       businessId: tenant.businessId,
-      dueDate: { gte: today, lt: tomorrow },
-      status: { notIn: ["PAID", "CANCELLED"] },
+      ...dueTodayDebtWhere(new Date(), timezone),
     },
     orderBy: { dueDate: "asc" },
   });
@@ -128,7 +120,7 @@ export async function getAgingReport(req: Request, res: Response) {
   const debts = await prisma.customerDebt.findMany({
     where: {
       businessId: tenant.businessId,
-      status: { notIn: ["PAID", "CANCELLED"] },
+      ...openOutstandingDebtWhere(),
       ...(customerId ? { customerId } : {}),
     },
     select: { outstandingAmount: true, dueDate: true },

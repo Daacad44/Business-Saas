@@ -4,6 +4,9 @@ import { prisma } from "../lib/prisma.js";
 import {
   calendarDaysBetweenInTimezone,
   dayBoundsInTimezone,
+  debtStatusQueryWhere,
+  dueTodayDebtWhere,
+  overdueDebtWhere,
   startOfDayInTimezone,
 } from "../modules/customers/timezone.js";
 import { createDebtFixture, registerAndOnboard } from "./customers-test-helpers.js";
@@ -207,15 +210,18 @@ describe("debts: day boundary uses the business timezone consistently", () => {
     });
 
     const overdue = await owner.agent.get("/api/v1/debts/overdue");
+    const overdueOnly = await owner.agent.get("/api/v1/debts").query({ overdueOnly: "true" });
     const dueToday = await owner.agent.get("/api/v1/debts/due-today");
     const aging = await owner.agent.get("/api/v1/debts/aging").query({ customerId });
     const reportsAging = await owner.agent.get("/api/v1/reports/receivables/aging");
 
     const overdueIds = (overdue.body.data as Array<{ id: string }>).map((d) => d.id);
+    const overdueOnlyIds = (overdueOnly.body.data as Array<{ id: string }>).map((d) => d.id);
     const dueTodayIds = (dueToday.body.data as Array<{ id: string }>).map((d) => d.id);
 
     expect(overdueIds).toContain(pastDuePending.id);
     expect(overdueIds).not.toContain(dueTodayPending.id);
+    expect(overdueOnlyIds).toEqual(overdueIds);
     expect(dueTodayIds).toContain(dueTodayPending.id);
     expect(dueTodayIds).not.toContain(pastDuePending.id);
 
@@ -305,6 +311,25 @@ describe("business timezone day-boundary math", () => {
     const firstInstantSep21 = new Date("2026-09-20T21:00:00.000Z");
     expect(calendarDaysBetweenInTimezone(lastSecondSep20, firstInstantSep21, BUSINESS_TIMEZONE)).toBe(1);
     expect(calendarDaysBetweenInTimezone(firstInstantSep21, firstInstantSep21, BUSINESS_TIMEZONE)).toBe(0);
+  });
+
+  it("pins overdueDebtWhere.dueDate.lt to the start of the business day, not the asOf instant", () => {
+    const asOf = new Date("2026-09-21T12:00:00.000Z");
+    const where = overdueDebtWhere(asOf, BUSINESS_TIMEZONE);
+    expect(where.dueDate).toEqual({ lt: startOfDayInTimezone(asOf, BUSINESS_TIMEZONE) });
+    expect((where.dueDate as { lt: Date }).lt.toISOString()).toBe("2026-09-20T21:00:00.000Z");
+    expect(where.outstandingAmount).toEqual({ gt: expect.anything() });
+    expect(where.status).toEqual({ notIn: ["PAID", "CANCELLED"] });
+  });
+
+  it("maps status=OVERDUE / status=DUE_TODAY query aliases onto the canonical predicates", () => {
+    const asOf = new Date("2026-09-21T12:00:00.000Z");
+    expect(debtStatusQueryWhere("OVERDUE", asOf, BUSINESS_TIMEZONE)).toEqual(
+      overdueDebtWhere(asOf, BUSINESS_TIMEZONE),
+    );
+    expect(debtStatusQueryWhere("DUE_TODAY", asOf, BUSINESS_TIMEZONE)).toEqual(
+      dueTodayDebtWhere(asOf, BUSINESS_TIMEZONE),
+    );
   });
 });
 

@@ -482,8 +482,12 @@ Source verified: `apps/api/src/modules/customers/*` on
   by the current user (`authorId`). No update/delete route exists for
   notes — they are append-only.
 - `GET /customers/:id/sales` — paginated `Sale[]` for this customer.
-- `GET /customers/:id/debts` — all `CustomerDebt[]` for this customer,
-  unpaginated, ordered by `dueDate` asc.
+- `GET /customers/:id/debts` query: `status` (`PENDING` /
+  `PARTIALLY_PAID` / `PAID` / `CANCELLED` filter the stored settlement
+  column; `OVERDUE` / `DUE_TODAY` are aliases for the live calendar
+  predicates; `DUE_SOON` is **422**). Unpaginated, ordered by `dueDate`
+  asc. See Debts below and
+  [transactional-invariants.md](./transactional-invariants.md).
 - `GET /customers/:id/payments` — all `DebtPayment[]` for this customer's
   debts, unpaginated, ordered by `paidAt` desc.
 - Errors: 401, 403, 404 (customer/address not found), 409 (duplicate
@@ -502,14 +506,20 @@ Source verified: `apps/api/src/modules/customers/*` on
 | POST | `/debts/:id/remind` | `debts.remind` |
 
 - `GET /debts` query: `page`, `pageSize`, `customerId`, `status`,
-  `overdueOnly` (`"true"` → forces `status = OVERDUE`, overriding an
-  explicit `status` param passed alongside it, since both spread into the
-  same `where` object with `overdueOnly` last), `dueDateFrom`/`dueDateTo`.
-- `GET /debts/overdue` — unpaginated list of `status = OVERDUE` debts.
-- `GET /debts/due-today` — unpaginated list of debts due today (UTC day
-  boundary via local `startOfDay()`, **not** business-timezone aware —
-  flagged as a scope note, not a bug fix, in the Roadmap doc), excluding
-  `PAID`/`CANCELLED`.
+  `overdueOnly` (`"true"` → live overdue predicate, composed with `AND`
+  so it cannot overwrite a `status=` clause), `dueDateFrom`/`dueDateTo`.
+  Settlement statuses (`PENDING` / `PARTIALLY_PAID` / `PAID` /
+  `CANCELLED`) filter the stored column. `status=OVERDUE` and
+  `status=DUE_TODAY` are **aliases** for the calendar predicates
+  (`dueDate` + `Business.timezone` + positive outstanding balance).
+  `status=DUE_SOON` is **422** — there is no canonical due-soon window.
+  `DebtStatus.OVERDUE` / `DUE_SOON` / `DUE_TODAY` are retained in the
+  schema but are never written and must not be read as a source of truth.
+- `GET /debts/overdue` — unpaginated list of the live overdue set
+  (`overdueDebtWhere`), not `status = OVERDUE`.
+- `GET /debts/due-today` — unpaginated list of debts due on the
+  business's own calendar day (`Business.timezone`), excluding
+  `PAID`/`CANCELLED` and requiring a positive outstanding balance.
 - `GET /debts/aging` query: `customerId?`, `asOf?` (defaults to now).
   Response: `{ asOf, buckets: { current, "1-30", "31-60", "61-90", "90+": { count, total } }, totalOutstanding }`
   — ages from `CustomerDebt.dueDate` (i.e. receivables age from the
