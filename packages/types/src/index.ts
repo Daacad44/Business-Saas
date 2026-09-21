@@ -18,6 +18,8 @@ export type ApiFailure = {
 
 export type ApiResponse<T> = ApiSuccess<T> | ApiFailure;
 
+export type BusinessStatus = "ACTIVE" | "SUSPENDED";
+
 export type BusinessType =
   | "RETAIL"
   | "WHOLESALE"
@@ -82,6 +84,7 @@ export type MembershipSummary = {
   id: string;
   businessId: string;
   businessName: string;
+  businessStatus: BusinessStatus;
   roleId: string;
   roleName: string;
   roleSlug: string;

@@ -52,7 +52,9 @@ export async function createBusinessOwnerAgent(app: Express, label = "business-o
   const me = await agent.get("/api/v1/auth/me");
   const userId = me.body.data.user.id as string;
   const businessId = onboard.body.data.business.id as string;
-  return { agent, email, userId, businessId };
+  const branchId = onboard.body.data.branch.id as string;
+  const warehouseId = onboard.body.data.warehouse.id as string;
+  return { agent, email, userId, businessId, branchId, warehouseId };
 }
 
 /** An authenticated agent whose user record has platformRole SUPER_ADMIN. */

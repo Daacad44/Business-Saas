@@ -18,11 +18,6 @@ import {
   userIdParamSchema,
   userListQuerySchema,
 } from "./admin.schemas.js";
-import {
-  businessStatusFromExtra,
-  mergeSuspensionMeta,
-  readSuspensionMeta,
-} from "./business-status.js";
 import { getMigrationStatus } from "./migration-status.js";
 import { pingRedis } from "./redis-health.js";
 
@@ -50,9 +45,7 @@ export async function getOverview(req: Request, res: Response) {
     prisma.branch.count(),
     prisma.warehouse.count(),
     prisma.auditLog.count(),
-    prisma.businessSettings.count({
-      where: { extra: { path: ["suspended"], equals: true } },
-    }),
+    prisma.business.count({ where: { status: "SUSPENDED" } }),
     prisma.session.count({ where: { revokedAt: null, expiresAt: { gt: new Date() } } }),
     prisma.$queryRaw<{ day: Date; count: bigint }[]>`
       SELECT date_trunc('day', "createdAt") AS day, COUNT(*)::bigint AS count
@@ -84,12 +77,7 @@ export async function getOverview(req: Request, res: Response) {
 export async function listBusinesses(req: Request, res: Response) {
   const { page, pageSize, search, status, sortBy, sortDir } = businessListQuerySchema.parse(req.query);
 
-  const statusWhere: Prisma.BusinessWhereInput =
-    status === "SUSPENDED"
-      ? { settings: { extra: { path: ["suspended"], equals: true } } }
-      : status === "ACTIVE"
-        ? { NOT: { settings: { extra: { path: ["suspended"], equals: true } } } }
-        : {};
+  const statusWhere: Prisma.BusinessWhereInput = status === "ALL" ? {} : { status };
 
   const searchWhere: Prisma.BusinessWhereInput = search
     ? {
@@ -117,7 +105,6 @@ export async function listBusinesses(req: Request, res: Response) {
       skip: (page - 1) * pageSize,
       take: pageSize,
       include: {
-        settings: { select: { extra: true } },
         _count: { select: { memberships: true, branches: true, warehouses: true } },
       },
     }),
@@ -132,7 +119,7 @@ export async function listBusinesses(req: Request, res: Response) {
     timezone: business.timezone,
     locale: business.locale,
     createdAt: business.createdAt,
-    status: businessStatusFromExtra(business.settings?.extra),
+    status: business.status,
     memberCount: business._count.memberships,
     branchCount: business._count.branches,
     warehouseCount: business._count.warehouses,
@@ -147,7 +134,6 @@ export async function getBusinessDetail(req: Request, res: Response) {
   const business = await prisma.business.findUnique({
     where: { id },
     include: {
-      settings: true,
       memberships: {
         where: { role: { slug: "owner" } },
         take: 1,
@@ -171,7 +157,6 @@ export async function getBusinessDetail(req: Request, res: Response) {
       prisma.customerDebt.aggregate({ where: { businessId: id }, _sum: { outstandingAmount: true } }),
     ]);
 
-  const suspensionMeta = readSuspensionMeta(business.settings?.extra);
   const owner = business.memberships[0]?.user ?? null;
 
   return sendData(res, {
@@ -184,9 +169,9 @@ export async function getBusinessDetail(req: Request, res: Response) {
     locale: business.locale,
     createdAt: business.createdAt,
     updatedAt: business.updatedAt,
-    status: suspensionMeta.suspended ? "SUSPENDED" : "ACTIVE",
-    suspendedAt: suspensionMeta.suspendedAt,
-    suspendedReason: suspensionMeta.suspendedReason,
+    status: business.status,
+    suspendedAt: business.suspendedAt,
+    suspendedReason: business.suspendedReason,
     owner,
     counts: {
       members: memberCount,
@@ -207,25 +192,23 @@ export async function suspendBusiness(req: Request, res: Response) {
   const adminId = req.auth!.userId;
 
   const result = await prisma.$transaction(async (tx) => {
-    const business = await tx.business.findUnique({ where: { id }, include: { settings: true } });
+    const business = await tx.business.findUnique({ where: { id } });
     if (!business) {
       throw notFound("Business not found");
     }
 
-    const settings = business.settings ?? (await tx.businessSettings.create({ data: { businessId: id } }));
-    const currentMeta = readSuspensionMeta(settings.extra);
-    if (currentMeta.suspended) {
+    if (business.status === "SUSPENDED") {
       throw conflict("Business is already suspended");
     }
 
-    const nextExtra = mergeSuspensionMeta(settings.extra, {
-      suspended: true,
-      suspendedAt: new Date().toISOString(),
-      suspendedById: adminId,
-      suspendedReason: reason ?? null,
+    await tx.business.update({
+      where: { id },
+      data: {
+        status: "SUSPENDED",
+        suspendedAt: new Date(),
+        suspendedReason: reason ?? null,
+      },
     });
-
-    await tx.businessSettings.update({ where: { businessId: id }, data: { extra: nextExtra } });
 
     await writeAudit(
       {
@@ -251,25 +234,23 @@ export async function reactivateBusiness(req: Request, res: Response) {
   const adminId = req.auth!.userId;
 
   const result = await prisma.$transaction(async (tx) => {
-    const business = await tx.business.findUnique({ where: { id }, include: { settings: true } });
+    const business = await tx.business.findUnique({ where: { id } });
     if (!business) {
       throw notFound("Business not found");
     }
 
-    const settings = business.settings ?? (await tx.businessSettings.create({ data: { businessId: id } }));
-    const currentMeta = readSuspensionMeta(settings.extra);
-    if (!currentMeta.suspended) {
+    if (business.status !== "SUSPENDED") {
       throw conflict("Business is not currently suspended");
     }
 
-    const nextExtra = mergeSuspensionMeta(settings.extra, {
-      suspended: false,
-      suspendedAt: null,
-      suspendedById: null,
-      suspendedReason: null,
+    await tx.business.update({
+      where: { id },
+      data: {
+        status: "ACTIVE",
+        suspendedAt: null,
+        suspendedReason: null,
+      },
     });
-
-    await tx.businessSettings.update({ where: { businessId: id }, data: { extra: nextExtra } });
 
     await writeAudit(
       {

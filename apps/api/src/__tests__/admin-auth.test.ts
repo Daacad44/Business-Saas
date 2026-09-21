@@ -168,15 +168,19 @@ describe("Full authorization matrix across every platform admin endpoint", () =>
       }
       if (endpoint.name === "POST /admin/businesses/:id/suspend") {
         // Ensure the business starts active before suspending in this pass.
-        await prisma.businessSettings.updateMany({
-          where: { businessId: ctx.businessId },
-          data: { extra: {} },
+        await prisma.business.update({
+          where: { id: ctx.businessId },
+          data: { status: "ACTIVE", suspendedAt: null, suspendedReason: null },
         });
       }
       if (endpoint.name === "POST /admin/businesses/:id/reactivate") {
-        await prisma.businessSettings.updateMany({
-          where: { businessId: ctx.businessId },
-          data: { extra: { suspended: true } },
+        await prisma.business.update({
+          where: { id: ctx.businessId },
+          data: {
+            status: "SUSPENDED",
+            suspendedAt: new Date(),
+            suspendedReason: "auth-matrix-reactivate-setup",
+          },
         });
       }
       if (endpoint.name === "PATCH /admin/users/:id/platform-role") {
