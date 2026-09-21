@@ -25,6 +25,12 @@ import {
   stockTransfersRouter,
   unitsRouter,
 } from "./modules/inventory/index.js";
+import { expenseCategoriesRouter } from "./modules/expenses/expense-categories.routes.js";
+import { expensesRouter } from "./modules/expenses/expenses.routes.js";
+import { payablesRouter } from "./modules/purchases/payables.routes.js";
+import { purchaseOrdersRouter } from "./modules/purchases/purchase-orders.routes.js";
+import { purchasesRouter } from "./modules/purchases/purchases.routes.js";
+import { suppliersRouter } from "./modules/purchases/suppliers.routes.js";
 
 export function createApp() {
   const app = express();
@@ -70,6 +76,12 @@ export function createApp() {
   app.use("/api/v1/debts", debtsRouter);
   app.use("/api/v1/sales", salesRouter);
   app.use("/api/v1/invoices", invoicesRouter);
+  app.use("/api/v1/suppliers", suppliersRouter);
+  app.use("/api/v1/purchase-orders", purchaseOrdersRouter);
+  app.use("/api/v1/purchases", purchasesRouter);
+  app.use("/api/v1/payables", payablesRouter);
+  app.use("/api/v1/expense-categories", expenseCategoriesRouter);
+  app.use("/api/v1/expenses", expensesRouter);
   app.use("/api/v1/admin", adminRouter);
 
   app.use(errorHandler);
