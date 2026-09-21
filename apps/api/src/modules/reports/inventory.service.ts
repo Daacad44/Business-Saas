@@ -6,41 +6,51 @@ import {
   reportInventoryValuationQuerySchema,
 } from "@daljir/validation";
 import type { Request, Response } from "express";
+import { computeStockValuation } from "../inventory/index.js";
 import { prisma } from "../../lib/prisma.js";
 import { sendData } from "../../lib/response.js";
-import { moneyStr, qtyStr, sumMoney } from "./lib/decimal.js";
+import { qtyStr } from "./lib/decimal.js";
 import { resolveRange } from "./lib/date-range.js";
 import { paginate, paginationMeta } from "./lib/pagination.js";
-import { inventoryValuationByWarehouse, lowStockCount, lowStockRows } from "./lib/raw.js";
+import { lowStockCount, lowStockRows } from "./lib/raw.js";
 import { assertTenant } from "./lib/tenant.js";
 import { parseReportQuery } from "./lib/validate.js";
 
 const DEFAULT_MOVEMENT_RANGE_DAYS = 30;
 
+/**
+ * Delegates the actual valuation aggregation to
+ * `inventory/valuation.service.ts` (the same function backing
+ * `GET /inventory/stock-levels/valuation`) so the two endpoints can never
+ * diverge. See that module for the rounding-at-the-boundary rationale;
+ * `.toFixed(2)`/`.toFixed(3)` are applied here, once, on the already
+ * fully-aggregated `Prisma.Decimal` totals — never on intermediate
+ * per-line or per-warehouse values.
+ */
 export async function getInventoryValuation(req: Request, res: Response) {
   const { tenant } = assertTenant(req);
   const query = parseReportQuery(reportInventoryValuationQuerySchema, req.query);
 
-  const rows = await inventoryValuationByWarehouse({ businessId: tenant.businessId, warehouseId: query.warehouseId });
-  const paged = rows.slice((query.page - 1) * query.limit, (query.page - 1) * query.limit + query.limit);
-
-  const totalValuation = sumMoney(rows.map((r) => r.valuation));
-  const totalQuantity = sumMoney(rows.map((r) => r.total_quantity));
+  const { totalValue, totalQuantity, byWarehouse } = await computeStockValuation({
+    businessId: tenant.businessId,
+    warehouseId: query.warehouseId,
+  });
+  const paged = byWarehouse.slice((query.page - 1) * query.limit, (query.page - 1) * query.limit + query.limit);
 
   return sendData(
     res,
     {
-      totalValuation: moneyStr(totalValuation),
-      totalQuantity: qtyStr(totalQuantity),
+      totalValuation: totalValue.toFixed(2),
+      totalQuantity: totalQuantity.toFixed(3),
       byWarehouse: paged.map((row) => ({
-        warehouseId: row.warehouse_id,
-        warehouseName: row.warehouse_name,
-        quantity: qtyStr(row.total_quantity),
-        valuation: moneyStr(row.valuation),
+        warehouseId: row.warehouseId,
+        warehouseName: row.warehouseName,
+        quantity: row.quantity.toFixed(3),
+        valuation: row.valuation.toFixed(2),
       })),
     },
     200,
-    paginationMeta(query.page, query.limit, rows.length),
+    paginationMeta(query.page, query.limit, byWarehouse.length),
   );
 }
 
