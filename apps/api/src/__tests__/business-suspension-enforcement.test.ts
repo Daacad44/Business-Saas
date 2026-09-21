@@ -121,6 +121,19 @@ function buildDomainTestApp() {
       res.json({ data: items });
     }),
   );
+  testApp.post(
+    "/t/debts",
+    requireAuth,
+    requireTenant,
+    asyncHandler(async (req, res) => {
+      const { debtId } = req.body as { debtId: string };
+      const debt = await prisma.customerDebt.update({
+        where: { id: debtId },
+        data: { remindersSent: { increment: 1 } },
+      });
+      res.json({ data: debt });
+    }),
+  );
 
   testApp.get(
     "/t/purchases",
@@ -235,6 +248,41 @@ describe("Business suspension enforcement matrix", () => {
     const supplier = await prisma.supplier.create({
       data: { businessId: owner.businessId, name: "Enforcement Test Supplier" },
     });
+    const customer = await prisma.customer.create({
+      data: { businessId: owner.businessId, fullName: "Enforcement Test Debtor" },
+    });
+    const sale = await prisma.sale.create({
+      data: {
+        businessId: owner.businessId,
+        branchId: owner.branchId,
+        warehouseId: owner.warehouseId,
+        customerId: customer.id,
+        saleNumber: `S-ENF-${Date.now()}`,
+        subtotal: 10,
+        totalAmount: 10,
+      },
+    });
+    const invoice = await prisma.invoice.create({
+      data: {
+        businessId: owner.businessId,
+        saleId: sale.id,
+        customerId: customer.id,
+        invoiceNumber: `INV-ENF-${Date.now()}`,
+        subtotal: 10,
+        totalAmount: 10,
+        amountDue: 10,
+      },
+    });
+    const debt = await prisma.customerDebt.create({
+      data: {
+        businessId: owner.businessId,
+        customerId: customer.id,
+        invoiceId: invoice.id,
+        principalAmount: 10,
+        outstandingAmount: 10,
+        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
 
     const domainRequests: Array<{ domain: string; method: "get" | "post"; path: string; body?: object }> = [
       { domain: "inventory:read", method: "get", path: "/t/inventory" },
@@ -249,6 +297,7 @@ describe("Business suspension enforcement matrix", () => {
       { domain: "customers:read", method: "get", path: "/t/customers" },
       { domain: "customers:write", method: "post", path: "/t/customers" },
       { domain: "debts:read", method: "get", path: "/t/debts" },
+      { domain: "debts:write", method: "post", path: "/t/debts", body: { debtId: debt.id } },
       { domain: "purchases:read", method: "get", path: "/t/purchases" },
       {
         domain: "purchases:write",
@@ -352,6 +401,10 @@ describe("Business suspension enforcement matrix", () => {
       )?.businessStatus,
     ).toBe("SUSPENDED");
 
+    const me = await owner.agent.get("/api/v1/auth/me");
+    expect(me.status).toBe(200);
+    expect(me.body.data.currentMembership.businessStatus).toBe("SUSPENDED");
+
     await superAdmin.agent.post(`/api/v1/admin/businesses/${owner.businessId}/reactivate`);
   });
 
@@ -368,6 +421,49 @@ describe("Business suspension enforcement matrix", () => {
     expect(detail.body.data.id).toBe(owner.businessId);
 
     await superAdmin.agent.post(`/api/v1/admin/businesses/${owner.businessId}/reactivate`);
+  });
+
+  it("blocks the production createApp tenant routes (branches and warehouses) with 403 BUSINESS_SUSPENDED and leaves another tenant unaffected", async () => {
+    const ownerA = await createBusinessOwnerAgent(app, "real-app-a");
+    const ownerB = await createBusinessOwnerAgent(app, "real-app-b");
+    const superAdmin = await createSuperAdminAgent(app, "real-app-admin");
+
+    expect((await ownerA.agent.get("/api/v1/branches")).status).toBe(200);
+    expect((await ownerA.agent.get("/api/v1/warehouses")).status).toBe(200);
+    expect((await ownerB.agent.get("/api/v1/branches")).status).toBe(200);
+
+    const suspendRes = await superAdmin.agent.post(`/api/v1/admin/businesses/${ownerA.businessId}/suspend`);
+    expect(suspendRes.status).toBe(200);
+
+    const blockedRead = await ownerA.agent.get("/api/v1/branches");
+    expect(blockedRead.status).toBe(403);
+    expect(blockedRead.body.error.code).toBe("BUSINESS_SUSPENDED");
+
+    const blockedWrite = await ownerA.agent.post("/api/v1/branches").send({
+      name: "Should Be Blocked",
+      code: `BLK-${Math.random().toString(36).slice(2, 6)}`,
+    });
+    expect(blockedWrite.status).toBe(403);
+    expect(blockedWrite.body.error.code).toBe("BUSINESS_SUSPENDED");
+
+    const blockedWarehouses = await ownerA.agent.get("/api/v1/warehouses");
+    expect(blockedWarehouses.status).toBe(403);
+    expect(blockedWarehouses.body.error.code).toBe("BUSINESS_SUSPENDED");
+
+    const okB = await ownerB.agent.get("/api/v1/branches");
+    expect(okB.status).toBe(200);
+    expect(okB.body.error).toBeNull();
+
+    const adminDetail = await superAdmin.agent.get(`/api/v1/admin/businesses/${ownerA.businessId}`);
+    expect(adminDetail.status).toBe(200);
+    expect(adminDetail.body.data.status).toBe("SUSPENDED");
+
+    const reactivateRes = await superAdmin.agent.post(`/api/v1/admin/businesses/${ownerA.businessId}/reactivate`);
+    expect(reactivateRes.status).toBe(200);
+
+    const restored = await ownerA.agent.get("/api/v1/branches");
+    expect(restored.status).toBe(200);
+    expect(restored.body.error).toBeNull();
   });
 });
 
