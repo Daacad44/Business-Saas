@@ -1,10 +1,10 @@
+import { renderTemplate } from "@daljir/notifications";
 import { z } from "zod";
 import type { Request, Response } from "express";
 import { forbidden, notFound } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 import { sendData } from "../../lib/response.js";
-import { dispatchNotification } from "./dispatch.service.js";
-import { renderTemplate } from "./render.js";
+import { dispatchNotification } from "./service.js";
 
 function assertTenant(req: Request) {
   if (!req.tenant || !req.auth) {

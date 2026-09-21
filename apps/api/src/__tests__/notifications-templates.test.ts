@@ -1,8 +1,8 @@
+import { formatMoney, renderTemplate } from "@daljir/notifications";
 import { afterAll, describe, expect, it } from "vitest";
 import request from "supertest";
 import { createApp } from "../app.js";
 import { prisma } from "../lib/prisma.js";
-import { formatMoney, renderTemplate } from "../modules/notifications/render.js";
 import { Prisma } from "@prisma/client";
 
 const app = createApp();

@@ -1,24 +1,36 @@
-import { env } from "../../env.js";
-import { logger } from "../../lib/logger.js";
-import { maskRecipient } from "../../lib/mask.js";
+import type { NotificationsLogger } from "../logger.js";
+import { maskRecipient } from "../mask.js";
 import type { ChannelSendInput, ChannelSendResult, NotificationChannelDriver } from "./types.js";
 
-/** Generic SMS gateway driver. Mirrors the API module's driver. */
-export function createSmsDriver(): NotificationChannelDriver {
+export type SmsDriverConfig = {
+  apiUrl: string;
+  apiKey: string;
+  senderId?: string;
+};
+
+/**
+ * Generic SMS gateway driver (works with most REST-based SMS aggregators
+ * common in the Somali/East-African market). Configuration is injected
+ * explicitly (dependency injection) rather than read from `process.env`.
+ */
+export function createSmsDriver(config: SmsDriverConfig, logger: NotificationsLogger): NotificationChannelDriver {
   return {
     channel: "SMS",
     provider: "sms",
     async send(input: ChannelSendInput): Promise<ChannelSendResult> {
-      const url = env.SMS_API_URL;
-      const apiKey = env.SMS_API_KEY;
-      if (!url || !apiKey) {
-        return { status: "FAILED", provider: "sms", errorMessage: "SMS provider is not configured" };
-      }
+      const { apiUrl, apiKey, senderId } = config;
       try {
-        const response = await fetch(url, {
+        const response = await fetch(apiUrl, {
           method: "POST",
-          headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-          body: JSON.stringify({ to: input.to, from: env.SMS_SENDER_ID, message: input.content }),
+          headers: {
+            "content-type": "application/json",
+            authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            to: input.to,
+            from: senderId,
+            message: input.content,
+          }),
         });
         const payload = (await response.json().catch(() => null)) as { id?: string } | null;
         if (!response.ok) {

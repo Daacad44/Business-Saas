@@ -1,7 +1,7 @@
+import { formatMoney, renderTemplate } from "@daljir/notifications";
 import type { AutomationAction, AutomationRule, AutomationTrigger, CustomerDebt, NotificationChannel } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
-import { dispatchNotification } from "../notifications/dispatch.service.js";
-import { formatMoney, renderTemplate } from "../notifications/render.js";
+import { dispatchNotification } from "../notifications/service.js";
 import { buildAutomationIdempotencyKey } from "./idempotency.js";
 
 export type RuleWithActions = AutomationRule & { actions: AutomationAction[] };
@@ -53,9 +53,10 @@ function isUniqueConstraintError(error: unknown): boolean {
  *    itself guarantees every send is logged (CLAUDE.md rule 9).
  *
  * This function is the canonical "automation job" unit run by the debt
- * due-date scheduler. It is duplicated (structurally identical) in
- * `apps/worker` because the worker is a separate deployable package that
- * cannot import API application source across the workspace boundary.
+ * due-date scheduler. The equivalent worker-side flow
+ * (`apps/worker/src/automation/execute-actions.ts`) is structurally
+ * similar but shares the underlying dispatch/render implementation via
+ * `@daljir/notifications` rather than duplicating it.
  */
 export async function processTriggerMatch(params: {
   businessId: string;

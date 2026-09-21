@@ -1,9 +1,9 @@
+import type { NotificationChannelDriver } from "@daljir/notifications";
 import { afterAll, describe, expect, it } from "vitest";
 import request from "supertest";
 import { createApp } from "../app.js";
 import { prisma } from "../lib/prisma.js";
-import { dispatchNotification } from "../modules/notifications/dispatch.service.js";
-import type { NotificationChannelDriver } from "../modules/notifications/drivers/types.js";
+import { dispatchNotification } from "../modules/notifications/service.js";
 
 const app = createApp();
 

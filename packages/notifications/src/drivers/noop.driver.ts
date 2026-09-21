@@ -1,4 +1,5 @@
 import type { NotificationChannel } from "@prisma/client";
+import type { NotificationsLogger } from "../logger.js";
 import { maskRecipient } from "../mask.js";
 import type { ChannelSendInput, ChannelSendResult, NotificationChannelDriver } from "./types.js";
 
@@ -9,14 +10,15 @@ import type { ChannelSendInput, ChannelSendResult, NotificationChannelDriver } f
  * transmitted. This lets the app boot and the automation pipeline run
  * end-to-end in dev/CI with zero provider configuration.
  */
-export function createNoopDriver(channel: NotificationChannel): NotificationChannelDriver {
+export function createNoopDriver(channel: NotificationChannel, logger: NotificationsLogger): NotificationChannelDriver {
   return {
     channel,
     provider: "noop",
     async send(input: ChannelSendInput): Promise<ChannelSendResult> {
-      console.info(
-        `[notifications] (noop driver) would send ${channel} to ${maskRecipient(input.to)} for business ${input.businessId}`,
-      );
+      logger.info(`(noop driver) would send ${channel}`, {
+        businessId: input.businessId,
+        recipient: maskRecipient(input.to),
+      });
       return { status: "QUEUED", provider: "noop", providerMessageId: null, errorMessage: null };
     },
   };

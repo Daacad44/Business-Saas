@@ -1,36 +1,35 @@
-import { notificationEnv } from "../env.js";
+import type { NotificationsLogger } from "../logger.js";
 import { maskRecipient } from "../mask.js";
 import type { ChannelSendInput, ChannelSendResult, NotificationChannelDriver } from "./types.js";
 
+export type WhatsAppDriverConfig = {
+  apiUrl: string;
+  apiToken: string;
+  fromPhoneId?: string;
+};
+
 /**
- * Generic WhatsApp Business Cloud API-style driver. Configured entirely via
- * optional env vars; only constructed when `isWhatsAppConfigured` is true.
+ * Generic WhatsApp Business Cloud API-style driver. Configuration is
+ * injected explicitly (dependency injection) rather than read from
+ * `process.env`, since each consuming app owns its own env schema.
  */
-export function createWhatsAppDriver(): NotificationChannelDriver {
+export function createWhatsAppDriver(config: WhatsAppDriverConfig, logger: NotificationsLogger): NotificationChannelDriver {
   return {
     channel: "WHATSAPP",
     provider: "whatsapp",
     async send(input: ChannelSendInput): Promise<ChannelSendResult> {
-      const url = notificationEnv.WHATSAPP_API_URL;
-      const token = notificationEnv.WHATSAPP_API_TOKEN;
-      if (!url || !token) {
-        return {
-          status: "FAILED",
-          provider: "whatsapp",
-          errorMessage: "WhatsApp provider is not configured",
-        };
-      }
+      const { apiUrl, apiToken, fromPhoneId } = config;
       try {
-        const response = await fetch(url, {
+        const response = await fetch(apiUrl, {
           method: "POST",
           headers: {
             "content-type": "application/json",
-            authorization: `Bearer ${token}`,
+            authorization: `Bearer ${apiToken}`,
           },
           body: JSON.stringify({
             messaging_product: "whatsapp",
             to: input.to,
-            from: notificationEnv.WHATSAPP_FROM_PHONE_ID,
+            from: fromPhoneId,
             type: "text",
             text: { body: input.content },
           }),
@@ -49,9 +48,11 @@ export function createWhatsAppDriver(): NotificationChannelDriver {
           providerMessageId: payload?.messages?.[0]?.id ?? null,
         };
       } catch (error) {
-        console.error(
-          `[notifications] WhatsApp send failed for ${maskRecipient(input.to)}: ${error instanceof Error ? error.message : "unknown error"}`,
-        );
+        logger.error("WhatsApp send failed", {
+          businessId: input.businessId,
+          recipient: maskRecipient(input.to),
+          error: error instanceof Error ? error.message : "unknown error",
+        });
         return {
           status: "FAILED",
           provider: "whatsapp",

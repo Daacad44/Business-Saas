@@ -6,8 +6,8 @@ import { clientIp } from "../../lib/business-setup.js";
 import { conflict, forbidden, notFound } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 import { sendData } from "../../lib/response.js";
+import { renderTemplate } from "@daljir/notifications";
 import { buildPageMeta, parsePagination } from "./pagination.js";
-import { renderTemplate } from "./render.js";
 
 function assertTenant(req: Request) {
   if (!req.tenant || !req.auth) {

@@ -609,6 +609,7 @@ export type AutomationExecutionSummary = {
   ruleId: string;
   triggerId: string | null;
   debtId: string | null;
+  stockLevelId: string | null;
   status: AutomationExecutionStatus;
   idempotencyKey: string;
   attempt: number;

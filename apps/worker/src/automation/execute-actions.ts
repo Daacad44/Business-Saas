@@ -1,9 +1,8 @@
-import type { NotificationChannel } from "@prisma/client";
+import { formatMoney, renderTemplate } from "@daljir/notifications";
+import type { AutomationAction, CustomerDebt, NotificationChannel, Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 import { logger } from "../lib/logger.js";
-import { dispatchNotification } from "../notifications/dispatch.js";
-import { formatMoney, renderTemplate } from "../notifications/render.js";
-import type { AutomationAction, CustomerDebt } from "@prisma/client";
+import { dispatchNotification } from "../lib/notifications.js";
 
 export type ExecuteActionsResult = {
   status: "SUCCESS" | "FAILED" | "SKIPPED";
@@ -26,54 +25,30 @@ function actionChannel(type: AutomationAction["type"]): NotificationChannel | nu
   }
 }
 
-function defaultMessage(debt: CustomerDebt, customerName: string) {
+function defaultDebtMessage(debt: CustomerDebt, customerName: string) {
   return `Hello ${customerName}, your payment of ${formatMoney(debt.outstandingAmount)} is due on ${debt.dueDate
     .toISOString()
     .slice(0, 10)}.`;
 }
 
+function defaultLowStockMessage(productLabel: string, quantity: Prisma.Decimal, threshold: Prisma.Decimal) {
+  return `Low stock alert: ${productLabel} has ${quantity.toString()} units left, at or below the reorder threshold of ${threshold.toString()}.`;
+}
+
 /**
- * Executes every action attached to an `AutomationExecution`'s rule and
- * dispatches the corresponding notifications. Called by the
- * notification-dispatch queue worker.
- *
- * Idempotency guard: atomically claims the execution by flipping
- * PENDING -> RUNNING. If another worker (or a duplicate BullMQ delivery)
- * already claimed it, this is a no-op — it will never send twice for the
- * same execution (CLAUDE.md rule 8).
+ * Executes every action attached to a DEBT-triggered `AutomationExecution`'s
+ * rule and dispatches the corresponding customer notifications.
  */
-export async function executeActions(executionId: string): Promise<ExecuteActionsResult> {
-  const claim = await prisma.automationExecution.updateMany({
-    where: { id: executionId, status: "PENDING" },
-    data: { status: "RUNNING" },
-  });
-  if (claim.count === 0) {
-    const existing = await prisma.automationExecution.findUnique({ where: { id: executionId } });
-    logger.info("Execution already claimed/processed — no-op", {
-      executionId,
-      status: existing?.status,
-    });
-    return { status: existing?.status === "SUCCESS" ? "SUCCESS" : existing?.status === "FAILED" ? "FAILED" : "SKIPPED", notificationIds: [] };
-  }
-
-  const execution = await prisma.automationExecution.findUnique({
-    where: { id: executionId },
-    include: {
-      rule: { include: { actions: { orderBy: { order: "asc" } } } },
-      debt: true,
-    },
-  });
-
-  if (!execution || !execution.debt) {
-    await prisma.automationExecution.update({
-      where: { id: executionId },
-      data: { status: "SKIPPED", error: "Missing debt or rule at execution time", executedAt: new Date() },
-    });
-    return { status: "SKIPPED", notificationIds: [] };
-  }
-
+async function executeDebtActions(
+  execution: {
+    id: string;
+    businessId: string;
+    rule: { id: string; name: string; actions: AutomationAction[] };
+    debt: CustomerDebt;
+  },
+  logContext: Record<string, unknown>,
+): Promise<ExecuteActionsResult> {
   const { businessId, debt, rule } = execution;
-  const logContext = { businessId, ruleId: rule.id, debtId: debt.id, executionId };
 
   const [customer, business] = await Promise.all([
     prisma.customer.findFirst({ where: { id: debt.customerId, businessId } }),
@@ -105,7 +80,7 @@ export async function executeActions(executionId: string): Promise<ExecuteAction
       businessName: business?.name ?? "",
     };
 
-    const content = template ? renderTemplate(template.body, variables) : defaultMessage(debt, variables.customerName);
+    const content = template ? renderTemplate(template.body, variables) : defaultDebtMessage(debt, variables.customerName);
     const subject = template?.subject ? renderTemplate(template.subject, variables) : null;
 
     const result = await dispatchNotification({
@@ -116,7 +91,7 @@ export async function executeActions(executionId: string): Promise<ExecuteAction
       content,
       customerId: customer?.id ?? null,
       templateId: template?.id ?? null,
-      executionId,
+      executionId: execution.id,
       title: `automation:${rule.name}`,
     });
 
@@ -137,7 +112,7 @@ export async function executeActions(executionId: string): Promise<ExecuteAction
 
   await prisma.$transaction([
     prisma.automationExecution.update({
-      where: { id: executionId },
+      where: { id: execution.id },
       data: { status: finalStatus, executedAt: new Date() },
     }),
     prisma.customerDebt.update({
@@ -149,4 +124,163 @@ export async function executeActions(executionId: string): Promise<ExecuteAction
   logger.info("Automation execution finished", { ...logContext, status: finalStatus });
 
   return { status: finalStatus, notificationIds };
+}
+
+/**
+ * Executes every action attached to a LOW_STOCK-triggered
+ * `AutomationExecution`'s rule and dispatches the corresponding
+ * business-facing alerts (there is no customer for a stock alert — the
+ * recipient is the business's own configured phone/email).
+ */
+async function executeLowStockActions(
+  execution: {
+    id: string;
+    businessId: string;
+    rule: { id: string; name: string; actions: AutomationAction[] };
+    stockLevel: {
+      id: string;
+      quantity: Prisma.Decimal;
+      reorderLevel: Prisma.Decimal | null;
+      product: { name: string; sku: string; lowStockThreshold: Prisma.Decimal | null };
+      variant: { name: string } | null;
+    };
+  },
+  logContext: Record<string, unknown>,
+): Promise<ExecuteActionsResult> {
+  const { businessId, stockLevel, rule } = execution;
+  const threshold = stockLevel.reorderLevel ?? stockLevel.product.lowStockThreshold;
+
+  const business = await prisma.business.findUnique({
+    where: { id: businessId },
+    select: { name: true, email: true, phone: true },
+  });
+
+  const productLabel = stockLevel.variant ? `${stockLevel.product.name} (${stockLevel.variant.name})` : stockLevel.product.name;
+
+  const notificationIds: string[] = [];
+  let hadFailure = false;
+
+  for (const action of rule.actions) {
+    const channel = actionChannel(action.type);
+    if (!channel) continue;
+
+    const to = channel === "EMAIL" ? business?.email : business?.phone;
+    if (!to) {
+      logger.warn("Skipping action: business has no recipient for channel", { ...logContext, channel });
+      hadFailure = true;
+      continue;
+    }
+
+    const template = action.templateId
+      ? await prisma.notificationTemplate.findFirst({ where: { id: action.templateId, businessId } })
+      : null;
+
+    const variables = {
+      productName: stockLevel.product.name,
+      variantName: stockLevel.variant?.name ?? "",
+      sku: stockLevel.product.sku,
+      quantity: stockLevel.quantity.toString(),
+      threshold: threshold?.toString() ?? "",
+      businessName: business?.name ?? "",
+    };
+
+    const content = template
+      ? renderTemplate(template.body, variables)
+      : defaultLowStockMessage(productLabel, stockLevel.quantity, threshold ?? stockLevel.quantity);
+    const subject = template?.subject ? renderTemplate(template.subject, variables) : null;
+
+    const result = await dispatchNotification({
+      businessId,
+      channel,
+      to,
+      subject,
+      content,
+      templateId: template?.id ?? null,
+      executionId: execution.id,
+      title: `automation:${rule.name}`,
+    });
+
+    logger.info("Dispatched automation notification", {
+      ...logContext,
+      notificationId: result.notificationId,
+      status: result.status,
+      channel,
+    });
+
+    notificationIds.push(result.notificationId);
+    if (result.status === "FAILED") {
+      hadFailure = true;
+    }
+  }
+
+  const finalStatus: "SUCCESS" | "FAILED" = hadFailure ? "FAILED" : "SUCCESS";
+
+  await prisma.automationExecution.update({
+    where: { id: execution.id },
+    data: { status: finalStatus, executedAt: new Date() },
+  });
+
+  logger.info("Automation execution finished", { ...logContext, status: finalStatus });
+
+  return { status: finalStatus, notificationIds };
+}
+
+/**
+ * Executes every action attached to an `AutomationExecution`'s rule and
+ * dispatches the corresponding notifications. Called by the
+ * notification-dispatch queue worker.
+ *
+ * Idempotency guard: atomically claims the execution by flipping
+ * PENDING -> RUNNING. If another worker (or a duplicate BullMQ delivery)
+ * already claimed it, this is a no-op — it will never send twice for the
+ * same execution (CLAUDE.md rule 8).
+ *
+ * Dispatches to either the DEBT-triggered flow or the LOW_STOCK-triggered
+ * flow depending on which relation the execution carries.
+ */
+export async function executeActions(executionId: string): Promise<ExecuteActionsResult> {
+  const claim = await prisma.automationExecution.updateMany({
+    where: { id: executionId, status: "PENDING" },
+    data: { status: "RUNNING" },
+  });
+  if (claim.count === 0) {
+    const existing = await prisma.automationExecution.findUnique({ where: { id: executionId } });
+    logger.info("Execution already claimed/processed — no-op", {
+      executionId,
+      status: existing?.status,
+    });
+    return { status: existing?.status === "SUCCESS" ? "SUCCESS" : existing?.status === "FAILED" ? "FAILED" : "SKIPPED", notificationIds: [] };
+  }
+
+  const execution = await prisma.automationExecution.findUnique({
+    where: { id: executionId },
+    include: {
+      rule: { include: { actions: { orderBy: { order: "asc" } } } },
+      debt: true,
+      stockLevel: { include: { product: true, variant: true } },
+    },
+  });
+
+  if (!execution || (!execution.debt && !execution.stockLevel)) {
+    await prisma.automationExecution.update({
+      where: { id: executionId },
+      data: { status: "SKIPPED", error: "Missing debt/stock line or rule at execution time", executedAt: new Date() },
+    });
+    return { status: "SKIPPED", notificationIds: [] };
+  }
+
+  const { businessId, rule } = execution;
+  const logContext = { businessId, ruleId: rule.id, executionId };
+
+  if (execution.debt) {
+    return executeDebtActions(
+      { id: execution.id, businessId, rule, debt: execution.debt },
+      { ...logContext, debtId: execution.debt.id },
+    );
+  }
+
+  return executeLowStockActions(
+    { id: execution.id, businessId, rule, stockLevel: execution.stockLevel! },
+    { ...logContext, stockLevelId: execution.stockLevel!.id },
+  );
 }

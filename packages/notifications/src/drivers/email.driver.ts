@@ -1,28 +1,35 @@
 import nodemailer from "nodemailer";
-import { env } from "../../env.js";
-import { logger } from "../../lib/logger.js";
-import { maskRecipient } from "../../lib/mask.js";
+import type { NotificationsLogger } from "../logger.js";
+import { maskRecipient } from "../mask.js";
 import type { ChannelSendInput, ChannelSendResult, NotificationChannelDriver } from "./types.js";
 
-/** SMTP email driver via nodemailer. Mirrors the API module's driver. */
-export function createEmailDriver(): NotificationChannelDriver {
+export type SmtpDriverConfig = {
+  host: string;
+  port?: number;
+  user: string;
+  password: string;
+  fromEmail?: string;
+};
+
+/**
+ * SMTP email driver via nodemailer. Configuration is injected explicitly
+ * (dependency injection) rather than read from `process.env`.
+ */
+export function createEmailDriver(config: SmtpDriverConfig, logger: NotificationsLogger): NotificationChannelDriver {
   return {
     channel: "EMAIL",
     provider: "smtp",
     async send(input: ChannelSendInput): Promise<ChannelSendResult> {
-      const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM_EMAIL } = env;
-      if (!SMTP_HOST || !SMTP_USER || !SMTP_PASSWORD) {
-        return { status: "FAILED", provider: "smtp", errorMessage: "Email provider is not configured" };
-      }
+      const { host, port, user, password, fromEmail } = config;
       try {
         const transport = nodemailer.createTransport({
-          host: SMTP_HOST,
-          port: SMTP_PORT ?? 587,
-          secure: (SMTP_PORT ?? 587) === 465,
-          auth: { user: SMTP_USER, pass: SMTP_PASSWORD },
+          host,
+          port: port ?? 587,
+          secure: (port ?? 587) === 465,
+          auth: { user, pass: password },
         });
         const info = await transport.sendMail({
-          from: SMTP_FROM_EMAIL ?? SMTP_USER,
+          from: fromEmail ?? user,
           to: input.to,
           subject: input.subject ?? "Notification",
           text: input.content,
