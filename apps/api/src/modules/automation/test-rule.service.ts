@@ -1,9 +1,11 @@
+import { createTriggerEvaluator } from "@daljir/automation";
 import { testAutomationRuleSchema } from "@daljir/validation";
 import type { Request, Response } from "express";
 import { forbidden, notFound } from "../../lib/errors.js";
 import { prisma } from "../../lib/prisma.js";
 import { sendData } from "../../lib/response.js";
-import { findMatchingDebts } from "./trigger-evaluator.js";
+
+const { findMatchingDebts, findLowStockMatches } = createTriggerEvaluator({ prisma });
 
 function assertTenant(req: Request) {
   if (!req.tenant || !req.auth) {
@@ -14,9 +16,12 @@ function assertTenant(req: Request) {
 
 /**
  * Dry-run / test endpoint. Evaluates a rule's triggers against REAL debt
- * data for this tenant and reports which entities WOULD match and which
- * actions WOULD fire — it never sends anything and never writes a
- * `Notification`, `NotificationLog`, or channel-message row.
+ * and stock data for this tenant and reports which entities WOULD match
+ * and which actions WOULD fire — it never sends anything and never writes
+ * a `Notification`, `NotificationLog`, or channel-message row.
+ *
+ * Trigger matching is the SAME implementation the BullMQ worker uses
+ * (`@daljir/automation`).
  */
 export async function testRule(req: Request, res: Response) {
   const { tenant } = assertTenant(req);
@@ -45,6 +50,26 @@ export async function testRule(req: Request, res: Response) {
 
   const triggerResults = await Promise.all(
     rule.triggers.map(async (trigger) => {
+      if (trigger.type === "LOW_STOCK") {
+        const matches = await findLowStockMatches(tenant.businessId);
+        return {
+          triggerId: trigger.id,
+          type: trigger.type,
+          offsetDays: trigger.offsetDays,
+          matchedCount: matches.length,
+          matchedDebts: [],
+          matchedStockLevels: matches.map((match) => ({
+            stockLevelId: match.stockLevelId,
+            productId: match.productId,
+            variantId: match.variantId,
+            warehouseId: match.warehouseId,
+            sku: match.sku,
+            quantity: match.quantity,
+            threshold: match.threshold,
+          })),
+        };
+      }
+
       const matches = await findMatchingDebts(tenant.businessId, trigger, input.debtId);
       return {
         triggerId: trigger.id,
@@ -58,6 +83,7 @@ export async function testRule(req: Request, res: Response) {
           outstandingAmount: debt.outstandingAmount,
           status: debt.status,
         })),
+        matchedStockLevels: [],
       };
     }),
   );

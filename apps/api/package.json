@@ -12,6 +12,7 @@
     "lint": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@daljir/automation": "workspace:*",
     "@daljir/database": "workspace:*",
     "@daljir/notifications": "workspace:*",
     "@daljir/types": "workspace:*",

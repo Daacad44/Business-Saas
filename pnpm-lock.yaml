@@ -84,6 +84,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@daljir/automation':
+        specifier: workspace:*
+        version: link:../../packages/automation
       '@daljir/database':
         specifier: workspace:*
         version: link:../../packages/database
@@ -227,6 +230,9 @@ importers:
 
   apps/worker:
     dependencies:
+      '@daljir/automation':
+        specifier: workspace:*
+        version: link:../../packages/automation
       '@daljir/database':
         specifier: workspace:*
         version: link:../../packages/database
@@ -258,6 +264,22 @@ importers:
       tsx:
         specifier: ^4.20.5
         version: 4.23.13
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@24.13.6)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.13)
+
+  packages/automation:
+    dependencies:
+      '@prisma/client':
+        specifier: ^6.19.3
+        version: 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
+    devDependencies:
+      '@types/node':
+        specifier: ^24.5.2
+        version: 24.13.6
       typescript:
         specifier: ^5.9.2
         version: 5.9.3

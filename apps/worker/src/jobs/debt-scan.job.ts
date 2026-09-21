@@ -1,7 +1,9 @@
+import { createTriggerEvaluator } from "@daljir/automation";
 import { prisma } from "../lib/prisma.js";
 import { logger } from "../lib/logger.js";
 import { attemptCreateExecution, attemptCreateStockExecution } from "../automation/create-execution.js";
-import { findLowStockMatches, findMatchingDebts } from "../automation/trigger-evaluator.js";
+
+const { findLowStockMatches, findMatchingDebts } = createTriggerEvaluator({ prisma });
 
 export type DebtScanResult = {
   businessesScanned: number;
@@ -17,6 +19,9 @@ export type DebtScanResult = {
  * business's own active `AutomationRule` set against ONLY that
  * business's own data (strict per-business isolation — every read and
  * write below carries the `businessId` it was scoped from).
+ *
+ * Trigger matching is the SAME implementation the API dry-run uses
+ * (`@daljir/automation`).
  *
  * For every match it atomically creates (or no-ops on) an
  * `AutomationExecution` and, only for a freshly created execution,
