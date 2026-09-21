@@ -6,13 +6,22 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json --noEmit",
-    "start": "node --import tsx src/index.ts"
+    "start": "node --import tsx src/index.ts",
+    "lint": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "dotenv": "^16.6.1"
+    "@daljir/database": "workspace:*",
+    "@daljir/types": "workspace:*",
+    "@prisma/client": "^6.19.3",
+    "bullmq": "^6.3.8",
+    "dotenv": "^16.6.1",
+    "ioredis": "^6.0.0",
+    "nodemailer": "^10.0.10",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/node": "^24.5.2",
+    "@types/nodemailer": "^8.0.2",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2"
   }

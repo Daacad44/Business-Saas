@@ -7,9 +7,11 @@ import { forbidden } from "./lib/errors.js";
 import { sendData } from "./lib/response.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
+import { automationRouter } from "./modules/automation/automation.routes.js";
 import { branchesRouter } from "./modules/branches/branches.routes.js";
 import { businessesRouter } from "./modules/businesses/businesses.routes.js";
 import { customersRouter, debtsRouter } from "./modules/customers/customers.routes.js";
+import { notificationsRouter } from "./modules/notifications/notifications.routes.js";
 import { permissionsRouter, rolesRouter } from "./modules/roles/roles.routes.js";
 import { invoicesRouter, salesRouter } from "./modules/sales/sales.routes.js";
 import { reportsRouter } from "./modules/reports/reports.routes.js";
@@ -85,6 +87,8 @@ export function createApp() {
   app.use("/api/v1/expenses", expensesRouter);
   app.use("/api/v1/reports", reportsRouter);
   app.use("/api/v1/admin", adminRouter);
+  app.use("/api/v1/automation", automationRouter);
+  app.use("/api/v1/notifications", notificationsRouter);
 
   app.use(errorHandler);
   return app;
