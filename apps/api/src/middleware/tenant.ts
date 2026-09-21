@@ -1,7 +1,7 @@
 import type { PermissionKey } from "@daljir/types";
 import type { NextFunction, Request, Response } from "express";
 import { BUSINESS_COOKIE, setBusinessCookie } from "../lib/cookies.js";
-import { forbidden, unauthorized } from "../lib/errors.js";
+import { AppError, forbidden, unauthorized } from "../lib/errors.js";
 import { prisma } from "../lib/prisma.js";
 
 export async function requireTenant(req: Request, res: Response, next: NextFunction) {
@@ -29,6 +29,20 @@ export async function requireTenant(req: Request, res: Response, next: NextFunct
 
     if (!membership) {
       throw forbidden("No active business membership");
+    }
+
+    // Deliberate exception to the platform's 404-not-403 convention: the caller
+    // legitimately knows this business exists (they are a member of it), so a 403
+    // with a machine-readable code lets the frontend show a dedicated "business
+    // suspended" screen instead of a generic permission error. This does not leak
+    // the existence of any OTHER tenant's resources — it only ever fires for a
+    // business the caller already has an active membership in.
+    if (membership.business.status === "SUSPENDED") {
+      throw new AppError(
+        403,
+        "BUSINESS_SUSPENDED",
+        "This business has been suspended by the platform. Contact support for details.",
+      );
     }
 
     if (requestedId !== membership.businessId) {
