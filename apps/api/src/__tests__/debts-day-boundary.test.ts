@@ -4,6 +4,8 @@ import { prisma } from "../lib/prisma.js";
 import {
   calendarDaysBetweenInTimezone,
   dayBoundsInTimezone,
+  debtStatusQueryWhere,
+  dueTodayDebtWhere,
   overdueDebtWhere,
   startOfDayInTimezone,
 } from "../modules/customers/timezone.js";
@@ -318,6 +320,16 @@ describe("business timezone day-boundary math", () => {
     expect((where.dueDate as { lt: Date }).lt.toISOString()).toBe("2026-09-20T21:00:00.000Z");
     expect(where.outstandingAmount).toEqual({ gt: expect.anything() });
     expect(where.status).toEqual({ notIn: ["PAID", "CANCELLED"] });
+  });
+
+  it("maps status=OVERDUE / status=DUE_TODAY query aliases onto the canonical predicates", () => {
+    const asOf = new Date("2026-09-21T12:00:00.000Z");
+    expect(debtStatusQueryWhere("OVERDUE", asOf, BUSINESS_TIMEZONE)).toEqual(
+      overdueDebtWhere(asOf, BUSINESS_TIMEZONE),
+    );
+    expect(debtStatusQueryWhere("DUE_TODAY", asOf, BUSINESS_TIMEZONE)).toEqual(
+      dueTodayDebtWhere(asOf, BUSINESS_TIMEZONE),
+    );
   });
 });
 
