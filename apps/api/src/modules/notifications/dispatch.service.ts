@@ -2,7 +2,7 @@ import type { MessageDeliveryStatus, NotificationChannel, NotificationStatus, Pr
 import { prisma } from "../../lib/prisma.js";
 import { notificationEnv } from "./env.js";
 import { resolveDriver } from "./drivers/index.js";
-import type { ChannelSendResult } from "./drivers/types.js";
+import type { ChannelSendResult, NotificationChannelDriver } from "./drivers/types.js";
 
 export type DispatchInput = {
   businessId: string;
@@ -19,6 +19,8 @@ export type DispatchInput = {
   retryBaseMs?: number;
   /** Overrides the max attempt count. Defaults to `NOTIFICATION_MAX_RETRIES`. */
   maxAttempts?: number;
+  /** Test-only hook to inject a fake driver instead of resolving one from env config. */
+  driver?: NotificationChannelDriver;
 };
 
 export type DispatchResult = {
@@ -166,7 +168,7 @@ export async function dispatchNotification(input: DispatchInput): Promise<Dispat
     return { notification, channelMessageId: channelMessage?.id ?? null };
   });
 
-  const driver = resolveDriver(input.channel);
+  const driver = input.driver ?? resolveDriver(input.channel);
   let attempt = 0;
   let lastResult: ChannelSendResult = {
     status: "FAILED",
