@@ -13,6 +13,7 @@
     "admin:bootstrap": "tsx src/scripts/bootstrap-admin.ts"
   },
   "dependencies": {
+    "@daljir/automation": "workspace:*",
     "@daljir/database": "workspace:*",
     "@daljir/notifications": "workspace:*",
     "@daljir/types": "workspace:*",
