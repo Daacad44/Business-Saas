@@ -1,0 +1,177 @@
+import { Router } from "express";
+import { asyncHandler } from "../../lib/async.js";
+import { requireAuth } from "../../middleware/auth.js";
+import { requirePermission, requireTenant } from "../../middleware/tenant.js";
+import * as customersService from "./customers.service.js";
+import * as debtsService from "./debts.service.js";
+
+export const customersRouter = Router();
+
+customersRouter.get(
+  "/",
+  requireAuth,
+  requireTenant,
+  requirePermission("customers.read"),
+  asyncHandler(customersService.listCustomers),
+);
+customersRouter.post(
+  "/",
+  requireAuth,
+  requireTenant,
+  requirePermission("customers.create"),
+  asyncHandler(customersService.createCustomer),
+);
+customersRouter.get(
+  "/:id",
+  requireAuth,
+  requireTenant,
+  requirePermission("customers.read"),
+  asyncHandler(customersService.getCustomer),
+);
+customersRouter.patch(
+  "/:id",
+  requireAuth,
+  requireTenant,
+  requirePermission("customers.update"),
+  asyncHandler(customersService.updateCustomer),
+);
+customersRouter.delete(
+  "/:id",
+  requireAuth,
+  requireTenant,
+  requirePermission("customers.update"),
+  asyncHandler(customersService.disableCustomer),
+);
+
+customersRouter.patch(
+  "/:id/credit-limit",
+  requireAuth,
+  requireTenant,
+  requirePermission("customers.update"),
+  asyncHandler(customersService.updateCreditLimit),
+);
+customersRouter.get(
+  "/:id/credit",
+  requireAuth,
+  requireTenant,
+  requirePermission("customers.read"),
+  asyncHandler(customersService.getAvailableCredit),
+);
+
+customersRouter.get(
+  "/:id/addresses",
+  requireAuth,
+  requireTenant,
+  requirePermission("customers.read"),
+  asyncHandler(customersService.listAddresses),
+);
+customersRouter.post(
+  "/:id/addresses",
+  requireAuth,
+  requireTenant,
+  requirePermission("customers.update"),
+  asyncHandler(customersService.createAddress),
+);
+customersRouter.patch(
+  "/:id/addresses/:addressId",
+  requireAuth,
+  requireTenant,
+  requirePermission("customers.update"),
+  asyncHandler(customersService.updateAddress),
+);
+customersRouter.delete(
+  "/:id/addresses/:addressId",
+  requireAuth,
+  requireTenant,
+  requirePermission("customers.update"),
+  asyncHandler(customersService.deleteAddress),
+);
+
+customersRouter.get(
+  "/:id/notes",
+  requireAuth,
+  requireTenant,
+  requirePermission("customers.read"),
+  asyncHandler(customersService.listNotes),
+);
+customersRouter.post(
+  "/:id/notes",
+  requireAuth,
+  requireTenant,
+  requirePermission("customers.update"),
+  asyncHandler(customersService.createNote),
+);
+
+customersRouter.get(
+  "/:id/sales",
+  requireAuth,
+  requireTenant,
+  requirePermission("customers.read"),
+  asyncHandler(customersService.listCustomerSales),
+);
+customersRouter.get(
+  "/:id/debts",
+  requireAuth,
+  requireTenant,
+  requirePermission("debts.read"),
+  asyncHandler(customersService.listCustomerDebts),
+);
+customersRouter.get(
+  "/:id/payments",
+  requireAuth,
+  requireTenant,
+  requirePermission("debts.read"),
+  asyncHandler(customersService.listCustomerPayments),
+);
+
+export const debtsRouter = Router();
+
+debtsRouter.get(
+  "/overdue",
+  requireAuth,
+  requireTenant,
+  requirePermission("debts.read"),
+  asyncHandler(debtsService.listOverdueDebts),
+);
+debtsRouter.get(
+  "/due-today",
+  requireAuth,
+  requireTenant,
+  requirePermission("debts.read"),
+  asyncHandler(debtsService.listDueTodayDebts),
+);
+debtsRouter.get(
+  "/aging",
+  requireAuth,
+  requireTenant,
+  requirePermission("debts.read"),
+  asyncHandler(debtsService.getAgingReport),
+);
+debtsRouter.get(
+  "/",
+  requireAuth,
+  requireTenant,
+  requirePermission("debts.read"),
+  asyncHandler(debtsService.listDebts),
+);
+debtsRouter.get(
+  "/:id",
+  requireAuth,
+  requireTenant,
+  requirePermission("debts.read"),
+  asyncHandler(debtsService.getDebt),
+);
+debtsRouter.post(
+  "/:id/payments",
+  requireAuth,
+  requireTenant,
+  requirePermission("debts.collect"),
+  asyncHandler(debtsService.recordDebtPayment),
+);
+debtsRouter.post(
+  "/:id/remind",
+  requireAuth,
+  requireTenant,
+  requirePermission("debts.remind"),
+  asyncHandler(debtsService.remindDebt),
+);
