@@ -15,6 +15,16 @@ import { permissionsRouter, rolesRouter } from "./modules/roles/roles.routes.js"
 import { invitationsRouter, usersRouter } from "./modules/users/users.routes.js";
 import { warehousesRouter } from "./modules/warehouses/warehouses.routes.js";
 import { adminRouter } from "./modules/admin/admin.routes.js";
+import {
+  batchesRouter,
+  categoriesRouter,
+  productsRouter,
+  stockAdjustmentsRouter,
+  stockLevelsRouter,
+  stockMovementsRouter,
+  stockTransfersRouter,
+  unitsRouter,
+} from "./modules/inventory/index.js";
 
 export function createApp() {
   const app = express();
@@ -48,6 +58,14 @@ export function createApp() {
   app.use("/api/v1/permissions", permissionsRouter);
   app.use("/api/v1/branches", branchesRouter);
   app.use("/api/v1/warehouses", warehousesRouter);
+  app.use("/api/v1/units", unitsRouter);
+  app.use("/api/v1/categories", categoriesRouter);
+  app.use("/api/v1/products", productsRouter);
+  app.use("/api/v1/batches", batchesRouter);
+  app.use("/api/v1/inventory/stock-levels", stockLevelsRouter);
+  app.use("/api/v1/inventory/movements", stockMovementsRouter);
+  app.use("/api/v1/inventory/adjustments", stockAdjustmentsRouter);
+  app.use("/api/v1/inventory/transfers", stockTransfersRouter);
   app.use("/api/v1/admin", adminRouter);
   app.use("/api/v1/automation", automationRouter);
   app.use("/api/v1/notifications", notificationsRouter);
