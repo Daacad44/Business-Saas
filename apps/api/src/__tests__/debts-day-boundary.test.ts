@@ -1,7 +1,11 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { createApp } from "../app.js";
 import { prisma } from "../lib/prisma.js";
-import { dayBoundsInTimezone } from "../modules/customers/timezone.js";
+import {
+  calendarDaysBetweenInTimezone,
+  dayBoundsInTimezone,
+  startOfDayInTimezone,
+} from "../modules/customers/timezone.js";
 import { createDebtFixture, registerAndOnboard } from "./customers-test-helpers.js";
 
 const app = createApp();
@@ -173,6 +177,134 @@ describe("debts: day boundary uses the business timezone consistently", () => {
 
     // Sanity: tomorrowStart really is 24h after todayStart (no accidental double-application of the offset).
     expect(tomorrowStart.getTime() - todayStart.getTime()).toBe(24 * 60 * 60 * 1000);
+  });
+
+  it("classifies overdue from the due-date boundary, not from stored status", async () => {
+    const owner = await registerAndOnboard(app, "BoundaryOverdueComputed", { timezone: BUSINESS_TIMEZONE });
+    const customer = await owner.agent.post("/api/v1/customers").send({ fullName: "Computed Overdue Customer" });
+    const customerId = customer.body.data.id as string;
+
+    const { start: todayStart } = dayBoundsInTimezone(new Date(), BUSINESS_TIMEZONE);
+    const oneSecondBeforeToday = new Date(todayStart.getTime() - 1000);
+    const oneSecondIntoToday = new Date(todayStart.getTime() + 1000);
+
+    // Both remain PENDING — overdue must still flip at the calendar-day boundary.
+    const { debt: pastDuePending } = await createDebtFixture({
+      businessId: owner.businessId,
+      branchId: owner.branchId,
+      warehouseId: owner.warehouseId,
+      customerId,
+      principal: "90.00",
+      dueDate: oneSecondBeforeToday,
+    });
+    const { debt: dueTodayPending } = await createDebtFixture({
+      businessId: owner.businessId,
+      branchId: owner.branchId,
+      warehouseId: owner.warehouseId,
+      customerId,
+      principal: "95.00",
+      dueDate: oneSecondIntoToday,
+    });
+
+    const overdue = await owner.agent.get("/api/v1/debts/overdue");
+    const dueToday = await owner.agent.get("/api/v1/debts/due-today");
+    const aging = await owner.agent.get("/api/v1/debts/aging").query({ customerId });
+    const reportsAging = await owner.agent.get("/api/v1/reports/receivables/aging");
+
+    const overdueIds = (overdue.body.data as Array<{ id: string }>).map((d) => d.id);
+    const dueTodayIds = (dueToday.body.data as Array<{ id: string }>).map((d) => d.id);
+
+    expect(overdueIds).toContain(pastDuePending.id);
+    expect(overdueIds).not.toContain(dueTodayPending.id);
+    expect(dueTodayIds).toContain(dueTodayPending.id);
+    expect(dueTodayIds).not.toContain(pastDuePending.id);
+
+    expect(aging.body.data.buckets["1-30"].total).toBe("90.00");
+    expect(aging.body.data.buckets.current.total).toBe("95.00");
+
+    const reportBuckets = reportsAging.body.data.buckets as Array<{
+      bucket: string;
+      outstanding: string;
+      debtCount: number;
+    }>;
+    expect(reportBuckets.find((b) => b.bucket === "1-30")?.outstanding).toBe("90.00");
+    expect(reportBuckets.find((b) => b.bucket === "current")?.outstanding).toBe("95.00");
+  });
+
+  it("does not leak another tenant's debts through due-today or overdue", async () => {
+    const tenantA = await registerAndOnboard(app, "BoundaryIsoA", { timezone: BUSINESS_TIMEZONE });
+    const tenantB = await registerAndOnboard(app, "BoundaryIsoB", { timezone: BUSINESS_TIMEZONE });
+
+    const customerA = await tenantA.agent.post("/api/v1/customers").send({ fullName: "Iso A Customer" });
+    const customerB = await tenantB.agent.post("/api/v1/customers").send({ fullName: "Iso B Customer" });
+
+    const { start: todayStart } = dayBoundsInTimezone(new Date(), BUSINESS_TIMEZONE);
+    const yesterday = new Date(todayStart.getTime() - 1000);
+
+    const { debt: debtAToday } = await createDebtFixture({
+      businessId: tenantA.businessId,
+      branchId: tenantA.branchId,
+      warehouseId: tenantA.warehouseId,
+      customerId: customerA.body.data.id as string,
+      principal: "11.00",
+      dueDate: todayStart,
+    });
+    const { debt: debtAOverdue } = await createDebtFixture({
+      businessId: tenantA.businessId,
+      branchId: tenantA.branchId,
+      warehouseId: tenantA.warehouseId,
+      customerId: customerA.body.data.id as string,
+      principal: "12.00",
+      dueDate: yesterday,
+    });
+    const { debt: debtBToday } = await createDebtFixture({
+      businessId: tenantB.businessId,
+      branchId: tenantB.branchId,
+      warehouseId: tenantB.warehouseId,
+      customerId: customerB.body.data.id as string,
+      principal: "13.00",
+      dueDate: todayStart,
+    });
+    const { debt: debtBOverdue } = await createDebtFixture({
+      businessId: tenantB.businessId,
+      branchId: tenantB.branchId,
+      warehouseId: tenantB.warehouseId,
+      customerId: customerB.body.data.id as string,
+      principal: "14.00",
+      dueDate: yesterday,
+    });
+
+    const dueTodayB = await tenantB.agent.get("/api/v1/debts/due-today");
+    const overdueB = await tenantB.agent.get("/api/v1/debts/overdue");
+    const dueTodayIdsB = (dueTodayB.body.data as Array<{ id: string }>).map((d) => d.id);
+    const overdueIdsB = (overdueB.body.data as Array<{ id: string }>).map((d) => d.id);
+
+    expect(dueTodayIdsB).toContain(debtBToday.id);
+    expect(dueTodayIdsB).not.toContain(debtAToday.id);
+    expect(overdueIdsB).toContain(debtBOverdue.id);
+    expect(overdueIdsB).not.toContain(debtAOverdue.id);
+
+    const leak = await tenantB.agent.get(`/api/v1/debts/${debtAOverdue.id}`);
+    expect(leak.status).toBe(404);
+  });
+});
+
+describe("business timezone day-boundary math", () => {
+  it("pins Africa/Mogadishu midnight to 21:00 UTC of the previous calendar day", () => {
+    const noonUtc = new Date("2026-09-21T12:00:00.000Z");
+    const start = startOfDayInTimezone(noonUtc, BUSINESS_TIMEZONE);
+    const { start: boundStart, end: boundEnd } = dayBoundsInTimezone(noonUtc, BUSINESS_TIMEZONE);
+
+    expect(start.toISOString()).toBe("2026-09-20T21:00:00.000Z");
+    expect(boundStart.toISOString()).toBe("2026-09-20T21:00:00.000Z");
+    expect(boundEnd.toISOString()).toBe("2026-09-21T21:00:00.000Z");
+  });
+
+  it("flips calendarDaysBetween by exactly 1 at the Mogadishu midnight instant", () => {
+    const lastSecondSep20 = new Date("2026-09-20T20:59:59.000Z");
+    const firstInstantSep21 = new Date("2026-09-20T21:00:00.000Z");
+    expect(calendarDaysBetweenInTimezone(lastSecondSep20, firstInstantSep21, BUSINESS_TIMEZONE)).toBe(1);
+    expect(calendarDaysBetweenInTimezone(firstInstantSep21, firstInstantSep21, BUSINESS_TIMEZONE)).toBe(0);
   });
 });
 

@@ -61,19 +61,27 @@ export async function listDebts(req: Request, res: Response) {
 }
 
 /**
- * `CustomerDebt.status` transitions to `OVERDUE` outside this module (a
- * scheduled scan owned by the automation/worker package, not present in
- * this module's owned code). This endpoint only reads that stored field —
- * it does not itself compute a day boundary. Whatever boundary rule the
- * status-transition job uses should be the same business-timezone rule
- * documented in `timezone.ts` and applied by `listDueTodayDebts`/
- * `getAgingReport` below, but that job is outside this module's ownership
- * and could not be verified here.
+ * Overdue is determined from the same business-timezone calendar-day
+ * boundary as `listDueTodayDebts` and `getAgingReport`: a debt is overdue
+ * when its `dueDate` is strictly before today's start in
+ * `Business.timezone` and it is still open (not PAID/CANCELLED).
+ *
+ * The stored `CustomerDebt.status` field is still written by an out-of-
+ * scope automation job, but this endpoint must not wait on that job —
+ * otherwise a past-due debt that is still PENDING would be missing from
+ * overdue while already sitting in aging's "1-30" bucket.
  */
 export async function listOverdueDebts(req: Request, res: Response) {
   const { tenant } = assertTenant(req);
+  const timezone = await resolveBusinessTimezone(tenant.businessId);
+  const { start: today } = dayBoundsInTimezone(new Date(), timezone);
+
   const debts = await prisma.customerDebt.findMany({
-    where: { businessId: tenant.businessId, status: "OVERDUE" },
+    where: {
+      businessId: tenant.businessId,
+      dueDate: { lt: today },
+      status: { notIn: ["PAID", "CANCELLED"] },
+    },
     orderBy: { dueDate: "asc" },
   });
   return sendData(res, debts.map(serializeDebt));

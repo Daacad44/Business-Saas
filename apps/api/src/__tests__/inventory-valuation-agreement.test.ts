@@ -136,6 +136,50 @@ describe("inventory valuation: the two endpoints agree exactly", () => {
     expect(inventoryFiltered.body.data.byWarehouse).toHaveLength(1);
     expect(reportsFiltered.body.data.byWarehouse).toHaveLength(1);
   });
+
+  it("rounds the true Prisma.Decimal sum at the response boundary, not per-line", async () => {
+    const tenant = await registerAndOnboard(app, "ValuationRounding");
+    const warehouseB = await createWarehouse(tenant.businessId, tenant.branchId, { name: "Beta Warehouse" });
+
+    // qty 1.111 * cost 1.11 = 1.23321 per warehouse.
+    // Rounding each line first then summing: 1.23 + 1.23 = 2.46.
+    // Rounding the true sum: 2.46642 -> "2.47".
+    const product = await createProduct(tenant.businessId, { costPrice: 1.11 });
+    await createStockLevel({
+      businessId: tenant.businessId,
+      warehouseId: tenant.warehouseId,
+      productId: product.id,
+      quantity: 1.111,
+    });
+    await createStockLevel({
+      businessId: tenant.businessId,
+      warehouseId: warehouseB.id,
+      productId: product.id,
+      quantity: 1.111,
+    });
+
+    const inventoryValuation = await tenant.agent.get("/api/v1/inventory/stock-levels/valuation");
+    const reportsValuation = await tenant.agent.get("/api/v1/reports/inventory/valuation");
+
+    expect(inventoryValuation.status).toBe(200);
+    expect(reportsValuation.status).toBe(200);
+
+    expect(inventoryValuation.body.data.totalValue).toBe("2.47");
+    expect(reportsValuation.body.data.totalValuation).toBe("2.47");
+    expect(inventoryValuation.body.data.totalValue).not.toBe("2.46");
+
+    const inventoryByWarehouse = inventoryValuation.body.data.byWarehouse as Array<{
+      warehouseId: string;
+      value: string;
+    }>;
+    const reportsByWarehouse = reportsValuation.body.data.byWarehouse as Array<{
+      warehouseId: string;
+      valuation: string;
+    }>;
+    expect(inventoryByWarehouse.map((row) => row.value).sort()).toEqual(["1.23", "1.23"]);
+    expect(reportsByWarehouse.map((row) => row.valuation).sort()).toEqual(["1.23", "1.23"]);
+    expect(reportsValuation.body.data.totalQuantity).toBe("2.222");
+  });
 });
 
 afterAll(async () => {

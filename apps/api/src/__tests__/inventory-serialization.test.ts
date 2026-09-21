@@ -141,6 +141,15 @@ describe("inventory serialization: money is 2dp, quantity is 3dp", () => {
     const row = lowStock.body.data.find((r: { productId: string }) => r.productId === productId);
     expect(row.quantity).toBe("3.000");
     expect(row.product.lowStockThreshold).toBe("5.000");
+
+    await prisma.stockLevel.updateMany({
+      where: { businessId: tenant.businessId, productId },
+      data: { reorderLevel: 2.5 },
+    });
+    const levelsAfterReorder = await tenant.agent
+      .get("/api/v1/inventory/stock-levels")
+      .query({ productId, warehouseId: tenant.warehouseId });
+    expect(levelsAfterReorder.body.data[0].reorderLevel).toBe("2.500");
   });
 
   it("serializes StockMovement quantity/unitCost fields exactly", async () => {
