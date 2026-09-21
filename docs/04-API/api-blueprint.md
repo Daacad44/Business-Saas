@@ -54,15 +54,27 @@ GET /customers/:id
 PATCH /customers/:id
 GET /customers/:id/sales
 GET /customers/:id/debts
+GET /customers/:id/debts?status=OVERDUE|DUE_TODAY|PENDING|PARTIALLY_PAID|PAID|CANCELLED
 GET /customers/:id/payments
 
 ## Debts
 GET /debts
+GET /debts?status=OVERDUE|DUE_TODAY|PENDING|PARTIALLY_PAID|PAID|CANCELLED
+GET /debts?overdueOnly=true
 GET /debts/overdue
 GET /debts/due-today
+GET /debts/aging
 GET /debts/:id
 POST /debts/:id/payments
 POST /debts/:id/remind
+
+Overdue and due-today are **derived** from `dueDate` + `Business.timezone`
++ a positive outstanding balance. `DebtStatus.OVERDUE` / `DUE_SOON` /
+`DUE_TODAY` are retained in the schema but are never written and must
+not be read as a source of truth. Query `status=OVERDUE` and
+`status=DUE_TODAY` are aliases for those live predicates;
+`status=DUE_SOON` is rejected with 422. See
+[transactional-invariants.md](./transactional-invariants.md).
 
 ## Purchases
 GET /suppliers
