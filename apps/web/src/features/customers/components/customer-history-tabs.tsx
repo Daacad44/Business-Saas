@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { Pagination } from "@/components/ui/pagination";
 import { formatDateTime, formatMoney } from "@/lib/format";
-import { errorMessage } from "@/lib/api-errors";
+import { userFacingError } from "@/lib/form-resolver";
 import { useCustomerDebts, useCustomerPayments, useCustomerSales } from "@/features/customers/hooks";
 import { useListState } from "@/features/inventory/lib/list-state";
 import type { CustomerDebtSummary, DebtPaymentSummary, DebtStatus, SaleSummary } from "@daljir/types";
@@ -30,7 +30,7 @@ export function CustomerSalesTab({ customerId }: { customerId: string }) {
   const columns: DataTableColumn<SaleSummary>[] = [
     { id: "saleNumber", header: t("saleNumber"), accessor: (row) => row.saleNumber },
     { id: "soldAt", header: t("date"), accessor: (row) => formatDateTime(row.soldAt) },
-    { id: "type", header: t("saleType"), accessor: (row) => row.type },
+    { id: "type", header: t("saleType"), accessor: (row) => (row.type === "CREDIT" ? t("saleTypeCredit") : t("saleTypeCash")) },
     { id: "totalAmount", header: t("total"), align: "end", accessor: (row) => formatMoney(row.totalAmount) },
   ];
 
@@ -42,7 +42,7 @@ export function CustomerSalesTab({ customerId }: { customerId: string }) {
         data={sales.data?.data ?? []}
         getRowId={(row) => row.id}
         isLoading={sales.isLoading}
-        error={sales.isError ? errorMessage(sales.error, tc("error")) : undefined}
+        error={sales.isError ? userFacingError(sales.error, tc("error"), tc("forbidden")) : undefined}
         onRetry={() => sales.refetch()}
         emptyTitle={t("noSales")}
       />
@@ -98,7 +98,7 @@ export function CustomerDebtsTab({ customerId }: { customerId: string }) {
       data={debts.data ?? []}
       getRowId={(row) => row.id}
       isLoading={debts.isLoading}
-      error={debts.isError ? errorMessage(debts.error, tc("error")) : undefined}
+      error={debts.isError ? userFacingError(debts.error, tc("error"), tc("forbidden")) : undefined}
       onRetry={() => debts.refetch()}
       emptyTitle={t("noDebts")}
     />
@@ -107,13 +107,14 @@ export function CustomerDebtsTab({ customerId }: { customerId: string }) {
 
 export function CustomerPaymentsTab({ customerId }: { customerId: string }) {
   const t = useTranslations("customers");
+  const td = useTranslations("debts");
   const tc = useTranslations("common");
   const payments = useCustomerPayments(customerId);
 
   const columns: DataTableColumn<DebtPaymentSummary>[] = [
     { id: "paidAt", header: t("date"), accessor: (row) => formatDateTime(row.paidAt) },
     { id: "amount", header: t("amount"), align: "end", accessor: (row) => formatMoney(row.amount) },
-    { id: "method", header: t("method"), accessor: (row) => row.method },
+    { id: "method", header: t("method"), accessor: (row) => td(`method.${row.method}`) },
     { id: "reference", header: t("reference"), accessor: (row) => row.reference ?? "—" },
   ];
 
@@ -124,7 +125,7 @@ export function CustomerPaymentsTab({ customerId }: { customerId: string }) {
       data={payments.data ?? []}
       getRowId={(row) => row.id}
       isLoading={payments.isLoading}
-      error={payments.isError ? errorMessage(payments.error, tc("error")) : undefined}
+      error={payments.isError ? userFacingError(payments.error, tc("error"), tc("forbidden")) : undefined}
       onRetry={() => payments.refetch()}
       emptyTitle={t("noPayments")}
     />

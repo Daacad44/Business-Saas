@@ -14,7 +14,8 @@ import { Modal } from "@/components/ui/modal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TextField } from "@/components/ui/form-field";
 import { useToast } from "@/components/ui/toast";
-import { errorMessage } from "@/lib/api-errors";
+import { applyFieldErrors, userFacingError, withBlankAsUndefined } from "@/lib/form-resolver";
+import { useHasPermission } from "@/lib/permissions";
 import { useCreateAddress, useCustomerAddresses, useDeleteAddress } from "@/features/customers/hooks";
 import type { CustomerAddressSummary } from "@daljir/types";
 
@@ -32,6 +33,7 @@ export function CustomerAddressesTab({ customerId }: { customerId: string }) {
   const t = useTranslations("customers");
   const tc = useTranslations("common");
   const { toast } = useToast();
+  const canUpdate = useHasPermission("customers.update");
 
   const addresses = useCustomerAddresses(customerId);
   const createAddress = useCreateAddress();
@@ -41,7 +43,9 @@ export function CustomerAddressesTab({ customerId }: { customerId: string }) {
   const [deletingAddress, setDeletingAddress] = React.useState<CustomerAddressSummary | null>(null);
 
   const form = useForm<AddressFormValues>({
-    resolver: zodResolver(createCustomerAddressSchema) as Resolver<AddressFormValues>,
+    resolver: withBlankAsUndefined(
+      zodResolver(createCustomerAddressSchema) as Resolver<AddressFormValues>,
+    ),
     defaultValues: { label: "", line1: "", line2: "", city: "", region: "", country: "", isDefault: false },
   });
 
@@ -63,7 +67,9 @@ export function CustomerAddressesTab({ customerId }: { customerId: string }) {
       setFormOpen(false);
       form.reset();
     } catch (error) {
-      toast({ title: errorMessage(error, tc("error")), variant: "error" });
+      if (!applyFieldErrors(error, form.setError)) {
+        toast({ title: userFacingError(error, tc("error"), tc("forbidden")), variant: "error" });
+      }
     }
   }
 
@@ -74,7 +80,7 @@ export function CustomerAddressesTab({ customerId }: { customerId: string }) {
       toast({ title: t("addressRemoved"), variant: "success" });
       setDeletingAddress(null);
     } catch (error) {
-      toast({ title: errorMessage(error, tc("error")), variant: "error" });
+      toast({ title: userFacingError(error, tc("error"), tc("forbidden")), variant: "error" });
     }
   }
 
@@ -82,9 +88,11 @@ export function CustomerAddressesTab({ customerId }: { customerId: string }) {
     <div>
       <div className="flex items-center justify-between">
         <h3 className="font-display text-xl">{t("addresses")}</h3>
-        <Button size="sm" onClick={() => setFormOpen(true)}>
-          {t("addAddress")}
-        </Button>
+        {canUpdate ? (
+          <Button size="sm" onClick={() => setFormOpen(true)}>
+            {t("addAddress")}
+          </Button>
+        ) : null}
       </div>
 
       <div className="mt-4">
@@ -94,7 +102,10 @@ export function CustomerAddressesTab({ customerId }: { customerId: string }) {
             <Skeleton className="h-16 w-full" />
           </div>
         ) : addresses.isError ? (
-          <ErrorState description={errorMessage(addresses.error, tc("error"))} onRetry={() => addresses.refetch()} />
+          <ErrorState
+            description={userFacingError(addresses.error, tc("error"), tc("forbidden"))}
+            onRetry={() => addresses.refetch()}
+          />
         ) : (addresses.data ?? []).length === 0 ? (
           <EmptyState title={t("noAddresses")} />
         ) : (
@@ -111,9 +122,11 @@ export function CustomerAddressesTab({ customerId }: { customerId: string }) {
                       .join(", ")}
                   </p>
                 </div>
-                <Button size="sm" variant="ghost" onClick={() => setDeletingAddress(address)}>
-                  {tc("delete")}
-                </Button>
+                {canUpdate ? (
+                  <Button size="sm" variant="ghost" onClick={() => setDeletingAddress(address)}>
+                    {tc("delete")}
+                  </Button>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -130,7 +143,7 @@ export function CustomerAddressesTab({ customerId }: { customerId: string }) {
             <Button type="button" variant="secondary" onClick={() => setFormOpen(false)} disabled={createAddress.isPending}>
               {tc("cancel")}
             </Button>
-            <Button type="submit" form="address-form" disabled={createAddress.isPending}>
+            <Button type="submit" form="address-form" disabled={createAddress.isPending || form.formState.isSubmitting}>
               {tc("create")}
             </Button>
           </>

@@ -9,9 +9,12 @@ import { useTranslations } from "next-intl";
 import { useFieldArray, useForm, type Resolver } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/form";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
 import { NumberField, SelectField, TextareaField, TextField } from "@/components/ui/form-field";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
-import { errorMessage } from "@/lib/api-errors";
+import { applyFieldErrors, userFacingError, withBlankAsUndefined } from "@/lib/form-resolver";
 import { useCreateStockTransfer, useProducts, useWarehouses } from "@/features/inventory/hooks";
 
 interface TransferFormValues {
@@ -33,7 +36,9 @@ export function StockTransferFormPage() {
   const createTransfer = useCreateStockTransfer();
 
   const form = useForm<TransferFormValues>({
-    resolver: zodResolver(createStockTransferSchema) as unknown as Resolver<TransferFormValues>,
+    resolver: withBlankAsUndefined(
+      zodResolver(createStockTransferSchema) as unknown as Resolver<TransferFormValues>,
+    ),
     defaultValues: {
       fromWarehouseId: "",
       toWarehouseId: "",
@@ -61,8 +66,56 @@ export function StockTransferFormPage() {
       toast({ title: t("dispatched"), variant: "success" });
       router.push("/inventory/stock-transfers");
     } catch (error) {
-      toast({ title: errorMessage(error, tc("error")), variant: "error" });
+      if (!applyFieldErrors(error, form.setError)) {
+        toast({ title: userFacingError(error, tc("error"), tc("forbidden")), variant: "error" });
+      }
     }
+  }
+
+  if (warehouses.isLoading || products.isLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-6 w-40" />
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-48 w-full" />
+        <Skeleton className="h-48 w-full" />
+      </div>
+    );
+  }
+
+  if (warehouses.isError) {
+    return (
+      <ErrorState
+        description={userFacingError(warehouses.error, tc("error"), tc("forbidden"))}
+        onRetry={() => warehouses.refetch()}
+      />
+    );
+  }
+
+  if (products.isError) {
+    return (
+      <ErrorState
+        description={userFacingError(products.error, tc("error"), tc("forbidden"))}
+        onRetry={() => products.refetch()}
+      />
+    );
+  }
+
+  if ((warehouses.data ?? []).length < 2) {
+    return (
+      <EmptyState
+        title={t("noWarehouses")}
+        description={t("noWarehousesDescription")}
+        action={
+          <Link
+            href="/settings/locations"
+            className="inline-flex h-11 items-center rounded-full bg-teal px-5 text-sm font-semibold text-paper hover:bg-teal-dark"
+          >
+            {t("manageLocations")}
+          </Link>
+        }
+      />
+    );
   }
 
   return (
@@ -170,7 +223,7 @@ export function StockTransferFormPage() {
           >
             {tc("cancel")}
           </Link>
-          <Button type="submit" disabled={createTransfer.isPending}>
+          <Button type="submit" disabled={createTransfer.isPending || form.formState.isSubmitting}>
             {t("submit")}
           </Button>
         </div>

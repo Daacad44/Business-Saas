@@ -150,7 +150,8 @@
     "create": "Create",
     "edit": "Edit",
     "delete": "Delete",
-    "save": "Save changes"
+    "save": "Save changes",
+    "forbidden": "You do not have permission to do this"
   },
   "units": {
     "title": "Units",
@@ -164,7 +165,9 @@
     "deleted": "Unit deleted",
     "deleteTitle": "Delete unit",
     "deleteBody": "Delete \"{name}\"? This cannot be undone.",
-    "empty": "No units yet."
+    "empty": "No units yet.",
+    "emptyDescription": "Create units such as piece, kilogram, or litre before adding products.",
+    "inUse": "This unit is in use and cannot be deleted."
   },
   "categories": {
     "title": "Categories",
@@ -242,7 +245,8 @@
     "reservedQuantity": "Reserved",
     "lowStockThreshold": "Threshold",
     "empty": "No stock levels found.",
-    "emptyLowStock": "No products are currently low on stock."
+    "emptyLowStock": "No products are currently low on stock.",
+    "valuationError": "Stock valuation could not be loaded."
   },
   "stockMovements": {
     "title": "Stock movements",
@@ -295,6 +299,9 @@
     "items": "Items",
     "submit": "Create adjustment",
     "createdAdjustment": "Stock adjustment created",
+    "noWarehouses": "No warehouses yet",
+    "noWarehousesDescription": "Add a warehouse under Locations before recording a stock adjustment.",
+    "manageLocations": "Manage locations",
     "reason": {
       "DAMAGE": "Damage",
       "THEFT": "Theft",
@@ -332,6 +339,9 @@
     "submit": "Dispatch transfer",
     "dispatched": "Transfer dispatched",
     "sameWarehouseError": "Destination must be different from the source warehouse",
+    "noWarehouses": "No warehouses yet",
+    "noWarehousesDescription": "Add at least two warehouses under Locations before transferring stock.",
+    "manageLocations": "Manage locations",
     "status": {
       "PENDING": "Pending",
       "IN_TRANSIT": "In transit",
@@ -401,7 +411,9 @@
     "amount": "Amount",
     "method": "Method",
     "reference": "Reference",
-    "noPayments": "No payments recorded yet."
+    "noPayments": "No payments recorded yet.",
+    "saleTypeCash": "Cash",
+    "saleTypeCredit": "Credit"
   },
   "debts": {
     "title": "Debts",

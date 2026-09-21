@@ -9,7 +9,7 @@ import { Modal } from "@/components/ui/modal";
 import { NumberField, SelectField, TextareaField, TextField } from "@/components/ui/form-field";
 import { useToast } from "@/components/ui/toast";
 import { formatMoney } from "@/lib/format";
-import { errorMessage, fieldErrorsFrom } from "@/lib/api-errors";
+import { applyFieldErrors, userFacingError, withBlankAsUndefined } from "@/lib/form-resolver";
 import { useRecordDebtPayment } from "@/features/debts/hooks";
 
 const METHODS = ["CASH", "MOBILE_MONEY", "BANK_TRANSFER", "CARD", "CREDIT_NOTE", "OTHER"] as const;
@@ -38,7 +38,9 @@ export function RecordPaymentModal({
   const recordPayment = useRecordDebtPayment();
 
   const form = useForm<PaymentFormValues>({
-    resolver: zodResolver(createDebtPaymentSchema) as unknown as Resolver<PaymentFormValues>,
+    resolver: withBlankAsUndefined(
+      zodResolver(createDebtPaymentSchema) as unknown as Resolver<PaymentFormValues>,
+    ),
     defaultValues: { amount: 0, method: "CASH", reference: "", notes: "" },
   });
 
@@ -57,11 +59,8 @@ export function RecordPaymentModal({
       form.reset({ amount: 0, method: "CASH", reference: "", notes: "" });
       onClose();
     } catch (error) {
-      const fieldErrors = fieldErrorsFrom(error);
-      if (fieldErrors.amount) {
-        form.setError("amount", { message: fieldErrors.amount });
-      } else {
-        toast({ title: errorMessage(error, tc("error")), variant: "error" });
+      if (!applyFieldErrors(error, form.setError)) {
+        toast({ title: userFacingError(error, tc("error"), tc("forbidden")), variant: "error" });
       }
     }
   }
@@ -78,7 +77,7 @@ export function RecordPaymentModal({
           <Button type="button" variant="secondary" onClick={onClose} disabled={recordPayment.isPending}>
             {tc("cancel")}
           </Button>
-          <Button type="submit" form="record-payment-form" disabled={recordPayment.isPending}>
+          <Button type="submit" form="record-payment-form" disabled={recordPayment.isPending || form.formState.isSubmitting}>
             {t("recordPayment")}
           </Button>
         </>

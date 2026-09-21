@@ -11,13 +11,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TextareaField } from "@/components/ui/form-field";
 import { useToast } from "@/components/ui/toast";
 import { formatDateTime } from "@/lib/format";
-import { errorMessage } from "@/lib/api-errors";
+import { applyFieldErrors, userFacingError } from "@/lib/form-resolver";
+import { useHasPermission } from "@/lib/permissions";
 import { useCreateNote, useCustomerNotes } from "@/features/customers/hooks";
 
 export function CustomerNotesTab({ customerId }: { customerId: string }) {
   const t = useTranslations("customers");
   const tc = useTranslations("common");
   const { toast } = useToast();
+  const canUpdate = useHasPermission("customers.update");
 
   const notes = useCustomerNotes(customerId);
   const createNote = useCreateNote();
@@ -33,32 +35,39 @@ export function CustomerNotesTab({ customerId }: { customerId: string }) {
       toast({ title: t("noteAdded"), variant: "success" });
       form.reset();
     } catch (error) {
-      toast({ title: errorMessage(error, tc("error")), variant: "error" });
+      if (!applyFieldErrors(error, form.setError)) {
+        toast({ title: userFacingError(error, tc("error"), tc("forbidden")), variant: "error" });
+      }
     }
   }
 
   return (
     <div>
-      <form className="flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={form.handleSubmit(onSubmit)}>
-        <TextareaField
-          label={t("newNote")}
-          wrapperClassName="flex-1"
-          {...form.register("note")}
-          error={form.formState.errors.note?.message}
-        />
-        <Button type="submit" disabled={createNote.isPending}>
-          {t("addNote")}
-        </Button>
-      </form>
+      {canUpdate ? (
+        <form className="flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={form.handleSubmit(onSubmit)}>
+          <TextareaField
+            label={t("newNote")}
+            wrapperClassName="flex-1"
+            {...form.register("note")}
+            error={form.formState.errors.note?.message}
+          />
+          <Button type="submit" disabled={createNote.isPending || form.formState.isSubmitting}>
+            {t("addNote")}
+          </Button>
+        </form>
+      ) : null}
 
-      <div className="mt-4">
+      <div className={canUpdate ? "mt-4" : undefined}>
         {notes.isLoading ? (
           <div className="space-y-2">
             <Skeleton className="h-14 w-full" />
             <Skeleton className="h-14 w-full" />
           </div>
         ) : notes.isError ? (
-          <ErrorState description={errorMessage(notes.error, tc("error"))} onRetry={() => notes.refetch()} />
+          <ErrorState
+            description={userFacingError(notes.error, tc("error"), tc("forbidden"))}
+            onRetry={() => notes.refetch()}
+          />
         ) : (notes.data ?? []).length === 0 ? (
           <EmptyState title={t("noNotes")} />
         ) : (

@@ -13,7 +13,7 @@ import { SearchInput } from "@/components/ui/search-input";
 import { SelectField } from "@/components/ui/form-field";
 import { useToast } from "@/components/ui/toast";
 import { formatMoney } from "@/lib/format";
-import { errorMessage } from "@/lib/api-errors";
+import { userFacingError } from "@/lib/form-resolver";
 import { useHasPermission } from "@/lib/permissions";
 import { useArchiveProduct, useCategories, useProducts } from "@/features/inventory/hooks";
 import { useListState } from "@/features/inventory/lib/list-state";
@@ -71,7 +71,7 @@ export function ProductsPage() {
       toast({ title: t("archived"), variant: "success" });
       setArchivingProduct(null);
     } catch (error) {
-      toast({ title: errorMessage(error, tc("error")), variant: "error" });
+      toast({ title: userFacingError(error, tc("error"), tc("forbidden")), variant: "error" });
     }
   }
 
@@ -158,7 +158,7 @@ export function ProductsPage() {
           data={products.data?.data ?? []}
           getRowId={(row) => row.id}
           isLoading={products.isLoading}
-          error={products.isError ? errorMessage(products.error, tc("error")) : undefined}
+          error={products.isError ? userFacingError(products.error, tc("error"), tc("forbidden")) : undefined}
           onRetry={() => products.refetch()}
           emptyTitle={t("empty")}
           emptyDescription={t("emptyDescription")}

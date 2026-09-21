@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/ui/stat-card";
 import { useToast } from "@/components/ui/toast";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
-import { errorMessage } from "@/lib/api-errors";
+import { isPositiveDecimal, userFacingError } from "@/lib/form-resolver";
 import { useHasPermission } from "@/lib/permissions";
 import { useDebt, useRemindDebt } from "@/features/debts/hooks";
 import { RecordPaymentModal } from "./record-payment-modal";
@@ -47,7 +47,7 @@ export function DebtDetailPage({ debtId }: { debtId: string }) {
         variant: result.duplicated ? "info" : "success",
       });
     } catch (error) {
-      toast({ title: errorMessage(error, tc("error")), variant: "error" });
+      toast({ title: userFacingError(error, tc("error"), tc("forbidden")), variant: "error" });
     }
   }
 
@@ -61,12 +61,12 @@ export function DebtDetailPage({ debtId }: { debtId: string }) {
   }
 
   if (debt.isError || !debt.data) {
-    return <ErrorState description={errorMessage(debt.error, tc("error"))} onRetry={() => debt.refetch()} />;
+    return <ErrorState description={userFacingError(debt.error, tc("error"), tc("forbidden"))} onRetry={() => debt.refetch()} />;
   }
 
   const data = debt.data;
   const canPay = canCollect && data.status !== "PAID" && data.status !== "CANCELLED";
-  const canSendReminder = canRemind && Number(data.outstandingAmount) > 0;
+  const canSendReminder = canRemind && isPositiveDecimal(data.outstandingAmount);
 
   const paymentColumns: DataTableColumn<DebtPaymentSummary>[] = [
     { id: "paidAt", header: t("date"), accessor: (row) => formatDateTime(row.paidAt) },

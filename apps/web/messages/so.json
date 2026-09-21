@@ -150,7 +150,8 @@
     "create": "Abuur",
     "edit": "Wax ka beddel",
     "delete": "Tirtir",
-    "save": "Kaydi isbeddelka"
+    "save": "Kaydi isbeddelka",
+    "forbidden": "Ma lihid oggolaansho aad tan ku samayso"
   },
   "units": {
     "title": "Cabbirrada",
@@ -164,7 +165,9 @@
     "deleted": "Cabbirka waa la tirtiray",
     "deleteTitle": "Tirtir cabbirka",
     "deleteBody": "Tirtir \"{name}\"? Tan lama celin karo.",
-    "empty": "Wali cabbir ma jiro."
+    "empty": "Wali cabbir ma jiro.",
+    "emptyDescription": "Abuur cabbirro sida xabbo, kiilo, ama litir ka hor intaadan ku darin alaab.",
+    "inUse": "Cabbirkan waa la isticmaalayaa, lama tirtiri karo."
   },
   "categories": {
     "title": "Qaybaha",
@@ -242,7 +245,8 @@
     "reservedQuantity": "La qabsaday",
     "lowStockThreshold": "Xadka",
     "empty": "Heer stock lama helin.",
-    "emptyLowStock": "Alaab stock-gooda hooseeyo ma jiraan hadda."
+    "emptyLowStock": "Alaab stock-gooda hooseeyo ma jiraan hadda.",
+    "valuationError": "Qiimaha stock-ga lama soo rarmin."
   },
   "stockMovements": {
     "title": "Dhaqdhaqaaqa Stock-ga",
@@ -295,6 +299,9 @@
     "items": "Alaabta",
     "submit": "Abuur hagaajinta",
     "createdAdjustment": "Hagaajinta stock waa la abuuray",
+    "noWarehouses": "Wali bakhaar ma jiro",
+    "noWarehousesDescription": "Kudar bakhaar gudaha Goobaha ka hor intaadan diiwaan gelin hagaajinta stock-ga.",
+    "manageLocations": "Maamul goobaha",
     "reason": {
       "DAMAGE": "Dhaawac",
       "THEFT": "Xatooyo",
@@ -332,6 +339,9 @@
     "submit": "Dir wareejinta",
     "dispatched": "Wareejinta waa la diray",
     "sameWarehouseError": "Bakhaarka loo wareejinayo waa inuu ka duwanaadaa kan laga wareejinayo",
+    "noWarehouses": "Wali bakhaar ma jiro",
+    "noWarehousesDescription": "Kudar ugu yaraan laba bakhaar gudaha Goobaha ka hor intaadan wareejin stock.",
+    "manageLocations": "Maamul goobaha",
     "status": {
       "PENDING": "Sugaya",
       "IN_TRANSIT": "Socda",
@@ -401,7 +411,9 @@
     "amount": "Qiimaha",
     "method": "Habka",
     "reference": "Tixraaca",
-    "noPayments": "Wali lacag bixin lama diiwaan gelinin."
+    "noPayments": "Wali lacag bixin lama diiwaan gelinin.",
+    "saleTypeCash": "Lacag caddaan ah",
+    "saleTypeCredit": "Deyn"
   },
   "debts": {
     "title": "Deynta",

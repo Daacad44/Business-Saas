@@ -6,12 +6,15 @@ import * as React from "react";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
 import { Pagination } from "@/components/ui/pagination";
 import { DateField, SelectField } from "@/components/ui/form-field";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/ui/stat-card";
 import { TabPanel, Tabs } from "@/components/ui/tabs";
 import { formatMoney, formatDate } from "@/lib/format";
-import { errorMessage } from "@/lib/api-errors";
+import { userFacingError } from "@/lib/form-resolver";
 import { useCustomers } from "@/features/customers/hooks";
 import { useListState } from "@/features/inventory/lib/list-state";
 import { useAgingReport, useDebts, useDueTodayDebts, useOverdueDebts } from "@/features/debts/hooks";
@@ -184,7 +187,7 @@ export function DebtsPage() {
             data={debts.data?.data ?? []}
             getRowId={(row) => row.id}
             isLoading={debts.isLoading}
-            error={debts.isError ? errorMessage(debts.error, tc("error")) : undefined}
+            error={debts.isError ? userFacingError(debts.error, tc("error"), tc("forbidden")) : undefined}
             onRetry={() => debts.refetch()}
             emptyTitle={t("empty")}
           />
@@ -209,7 +212,7 @@ export function DebtsPage() {
           data={overdueDebts.data ?? []}
           getRowId={(row) => row.id}
           isLoading={overdueDebts.isLoading}
-          error={overdueDebts.isError ? errorMessage(overdueDebts.error, tc("error")) : undefined}
+          error={overdueDebts.isError ? userFacingError(overdueDebts.error, tc("error"), tc("forbidden")) : undefined}
           onRetry={() => overdueDebts.refetch()}
           emptyTitle={t("emptyOverdue")}
         />
@@ -222,7 +225,7 @@ export function DebtsPage() {
           data={dueTodayDebts.data ?? []}
           getRowId={(row) => row.id}
           isLoading={dueTodayDebts.isLoading}
-          error={dueTodayDebts.isError ? errorMessage(dueTodayDebts.error, tc("error")) : undefined}
+          error={dueTodayDebts.isError ? userFacingError(dueTodayDebts.error, tc("error"), tc("forbidden")) : undefined}
           onRetry={() => dueTodayDebts.refetch()}
           emptyTitle={t("emptyDueToday")}
         />
@@ -232,11 +235,14 @@ export function DebtsPage() {
         {aging.isLoading ? (
           <div className="grid gap-4 sm:grid-cols-5">
             {Array.from({ length: 5 }).map((_, index) => (
-              <div key={index} className="h-24 animate-pulse rounded-3xl bg-line/40" />
+              <Skeleton key={index} className="h-24 w-full rounded-3xl" />
             ))}
           </div>
         ) : aging.isError ? (
-          <p className="text-red-700">{errorMessage(aging.error, tc("error"))}</p>
+          <ErrorState
+            description={userFacingError(aging.error, tc("error"), tc("forbidden"))}
+            onRetry={() => aging.refetch()}
+          />
         ) : aging.data ? (
           <div>
             <div className="grid gap-4 sm:grid-cols-5">
@@ -250,7 +256,9 @@ export function DebtsPage() {
               {t("totalOutstanding")}: <span className="font-semibold text-ink">{formatMoney(aging.data.totalOutstanding)}</span>
             </p>
           </div>
-        ) : null}
+        ) : (
+          <EmptyState title={t("empty")} />
+        )}
       </TabPanel>
     </div>
   );

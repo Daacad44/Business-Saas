@@ -5,7 +5,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { Pagination } from "@/components/ui/pagination";
 import { DateField, SelectField } from "@/components/ui/form-field";
 import { formatDateTime, formatQuantity } from "@/lib/format";
-import { errorMessage } from "@/lib/api-errors";
+import { userFacingError } from "@/lib/form-resolver";
 import { useProducts, useStockMovements, useWarehouses } from "@/features/inventory/hooks";
 import { useListState } from "@/features/inventory/lib/list-state";
 import type { StockMovementSummary, StockMovementType } from "@daljir/types";
@@ -138,7 +138,7 @@ export function StockMovementsPage() {
           data={movements.data?.data ?? []}
           getRowId={(row) => row.id}
           isLoading={movements.isLoading}
-          error={movements.isError ? errorMessage(movements.error, tc("error")) : undefined}
+          error={movements.isError ? userFacingError(movements.error, tc("error"), tc("forbidden")) : undefined}
           onRetry={() => movements.refetch()}
           emptyTitle={t("empty")}
         />

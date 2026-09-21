@@ -9,9 +9,12 @@ import { useTranslations } from "next-intl";
 import { useFieldArray, useForm, type Resolver } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/form";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
 import { NumberField, SelectField, TextareaField, TextField } from "@/components/ui/form-field";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
-import { errorMessage } from "@/lib/api-errors";
+import { applyFieldErrors, userFacingError, withBlankAsUndefined } from "@/lib/form-resolver";
 import { useCreateStockAdjustment, useProducts, useWarehouses } from "@/features/inventory/hooks";
 
 const REASONS = ["DAMAGE", "THEFT", "EXPIRY", "RECOUNT", "OTHER"] as const;
@@ -35,7 +38,9 @@ export function StockAdjustmentFormPage() {
   const createAdjustment = useCreateStockAdjustment();
 
   const form = useForm<AdjustmentFormValues>({
-    resolver: zodResolver(createStockAdjustmentSchema) as unknown as Resolver<AdjustmentFormValues>,
+    resolver: withBlankAsUndefined(
+      zodResolver(createStockAdjustmentSchema) as unknown as Resolver<AdjustmentFormValues>,
+    ),
     defaultValues: {
       warehouseId: "",
       reason: "RECOUNT",
@@ -63,8 +68,56 @@ export function StockAdjustmentFormPage() {
       toast({ title: t("createdAdjustment"), variant: "success" });
       router.push("/inventory/stock-adjustments");
     } catch (error) {
-      toast({ title: errorMessage(error, tc("error")), variant: "error" });
+      if (!applyFieldErrors(error, form.setError)) {
+        toast({ title: userFacingError(error, tc("error"), tc("forbidden")), variant: "error" });
+      }
     }
+  }
+
+  if (warehouses.isLoading || products.isLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-6 w-40" />
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-48 w-full" />
+        <Skeleton className="h-48 w-full" />
+      </div>
+    );
+  }
+
+  if (warehouses.isError) {
+    return (
+      <ErrorState
+        description={userFacingError(warehouses.error, tc("error"), tc("forbidden"))}
+        onRetry={() => warehouses.refetch()}
+      />
+    );
+  }
+
+  if (products.isError) {
+    return (
+      <ErrorState
+        description={userFacingError(products.error, tc("error"), tc("forbidden"))}
+        onRetry={() => products.refetch()}
+      />
+    );
+  }
+
+  if ((warehouses.data ?? []).length === 0) {
+    return (
+      <EmptyState
+        title={t("noWarehouses")}
+        description={t("noWarehousesDescription")}
+        action={
+          <Link
+            href="/settings/locations"
+            className="inline-flex h-11 items-center rounded-full bg-teal px-5 text-sm font-semibold text-paper hover:bg-teal-dark"
+          >
+            {t("manageLocations")}
+          </Link>
+        }
+      />
+    );
   }
 
   return (
@@ -139,6 +192,7 @@ export function StockAdjustmentFormPage() {
                   label={t("quantityDelta")}
                   kind="quantity"
                   step="any"
+                  min="-999999999"
                   description={t("quantityDeltaHint")}
                   {...form.register(`items.${index}.quantityDelta`, { valueAsNumber: true })}
                   error={form.formState.errors.items?.[index]?.quantityDelta?.message}
@@ -175,7 +229,7 @@ export function StockAdjustmentFormPage() {
           >
             {tc("cancel")}
           </Link>
-          <Button type="submit" disabled={createAdjustment.isPending}>
+          <Button type="submit" disabled={createAdjustment.isPending || form.formState.isSubmitting}>
             {t("submit")}
           </Button>
         </div>

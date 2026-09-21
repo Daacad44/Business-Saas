@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { NumberField, SelectField, TextareaField, TextField } from "@/components/ui/form-field";
 import { useToast } from "@/components/ui/toast";
-import { errorMessage, fieldErrorsFrom } from "@/lib/api-errors";
+import { applyFieldErrors, userFacingError, withBlankAsUndefined } from "@/lib/form-resolver";
 import { useCategories, useCreateProduct, useUnits, useUpdateProduct } from "@/features/inventory/hooks";
 
 interface ProductFormValues {
@@ -68,9 +68,11 @@ export function ProductFormModal({
   const pending = createProduct.isPending || updateProduct.isPending;
 
   const form = useForm<ProductFormValues>({
-    resolver: zodResolver(
-      (isEdit ? updateProductSchema : createProductSchema) as unknown as ZodType<ProductFormValues>,
-    ) as Resolver<ProductFormValues>,
+    resolver: withBlankAsUndefined(
+      zodResolver(
+        (isEdit ? updateProductSchema : createProductSchema) as unknown as ZodType<ProductFormValues>,
+      ) as Resolver<ProductFormValues>,
+    ),
     defaultValues: defaultsFor(product),
   });
 
@@ -102,7 +104,7 @@ export function ProductFormModal({
             categoryId: values.categoryId || null,
             unitId: values.unitId || null,
             barcode: values.barcode || null,
-            description: values.description || null,
+            description: values.description || undefined,
             lowStockThreshold: values.lowStockThreshold ?? null,
             status: values.status,
           },
@@ -114,16 +116,8 @@ export function ProductFormModal({
       }
       onClose();
     } catch (error) {
-      const fieldErrors = fieldErrorsFrom(error);
-      let matched = false;
-      for (const [field, message] of Object.entries(fieldErrors)) {
-        if (field in defaultsFor(null)) {
-          form.setError(field as keyof ProductFormValues, { message });
-          matched = true;
-        }
-      }
-      if (!matched) {
-        toast({ title: errorMessage(error, tc("error")), variant: "error" });
+      if (!applyFieldErrors(error, form.setError)) {
+        toast({ title: userFacingError(error, tc("error"), tc("forbidden")), variant: "error" });
       }
     }
   }
@@ -140,7 +134,7 @@ export function ProductFormModal({
           <Button type="button" variant="secondary" onClick={onClose} disabled={pending}>
             {tc("cancel")}
           </Button>
-          <Button type="submit" form="product-form" disabled={pending}>
+          <Button type="submit" form="product-form" disabled={pending || form.formState.isSubmitting}>
             {isEdit ? tc("save") : tc("create")}
           </Button>
         </>

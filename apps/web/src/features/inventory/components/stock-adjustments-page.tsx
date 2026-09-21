@@ -7,7 +7,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { Pagination } from "@/components/ui/pagination";
 import { SelectField } from "@/components/ui/form-field";
 import { formatDateTime } from "@/lib/format";
-import { errorMessage } from "@/lib/api-errors";
+import { userFacingError } from "@/lib/form-resolver";
 import { useHasPermission } from "@/lib/permissions";
 import type { StockAdjustmentWithItems } from "@/features/inventory/api";
 import { useStockAdjustments, useWarehouses } from "@/features/inventory/hooks";
@@ -44,7 +44,7 @@ export function StockAdjustmentsPage() {
       header: t("warehouse"),
       accessor: (row) => warehouseNameById.get(row.warehouseId) ?? row.warehouseId,
     },
-    { id: "reason", header: t("reason"), accessor: (row) => <Badge variant="info">{t(`reason.${row.reason}`)}</Badge> },
+    { id: "reason", header: t("reasonLabel"), accessor: (row) => <Badge variant="info">{t(`reason.${row.reason}`)}</Badge> },
     { id: "items", header: t("itemCount"), align: "end", accessor: (row) => row.items.length },
     { id: "reference", header: t("reference"), accessor: (row) => row.reference ?? "—" },
   ];
@@ -99,7 +99,7 @@ export function StockAdjustmentsPage() {
           data={adjustments.data?.data ?? []}
           getRowId={(row) => row.id}
           isLoading={adjustments.isLoading}
-          error={adjustments.isError ? errorMessage(adjustments.error, tc("error")) : undefined}
+          error={adjustments.isError ? userFacingError(adjustments.error, tc("error"), tc("forbidden")) : undefined}
           onRetry={() => adjustments.refetch()}
           emptyTitle={t("empty")}
           emptyDescription={canAdjust ? t("emptyDescription") : undefined}

@@ -11,7 +11,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { SelectField } from "@/components/ui/form-field";
 import { useToast } from "@/components/ui/toast";
 import { formatDateTime } from "@/lib/format";
-import { errorMessage } from "@/lib/api-errors";
+import { userFacingError } from "@/lib/form-resolver";
 import { useHasPermission } from "@/lib/permissions";
 import type { StockTransferWithItems } from "@/features/inventory/api";
 import { useReceiveStockTransfer, useStockTransfers, useWarehouses } from "@/features/inventory/hooks";
@@ -60,7 +60,7 @@ export function StockTransfersPage() {
       toast({ title: t("received"), variant: "success" });
       setReceivingTransfer(null);
     } catch (error) {
-      toast({ title: errorMessage(error, tc("error")), variant: "error" });
+      toast({ title: userFacingError(error, tc("error"), tc("forbidden")), variant: "error" });
     }
   }
 
@@ -135,7 +135,7 @@ export function StockTransfersPage() {
           data={transfers.data?.data ?? []}
           getRowId={(row) => row.id}
           isLoading={transfers.isLoading}
-          error={transfers.isError ? errorMessage(transfers.error, tc("error")) : undefined}
+          error={transfers.isError ? userFacingError(transfers.error, tc("error"), tc("forbidden")) : undefined}
           onRetry={() => transfers.refetch()}
           emptyTitle={t("empty")}
           rowActions={

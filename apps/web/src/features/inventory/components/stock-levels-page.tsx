@@ -4,12 +4,14 @@ import * as React from "react";
 import { useTranslations } from "next-intl";
 import { AlertTriangle, Boxes, DollarSign } from "lucide-react";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { ErrorState } from "@/components/ui/error-state";
 import { Pagination } from "@/components/ui/pagination";
 import { SelectField } from "@/components/ui/form-field";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/ui/stat-card";
 import { TabPanel, Tabs } from "@/components/ui/tabs";
 import { formatMoney, formatQuantity } from "@/lib/format";
-import { errorMessage } from "@/lib/api-errors";
+import { userFacingError } from "@/lib/form-resolver";
 import type { LowStockItem } from "@/features/inventory/api";
 import { useLowStock, useProducts, useStockLevels, useStockValuation, useWarehouses } from "@/features/inventory/hooks";
 import { useListState } from "@/features/inventory/lib/list-state";
@@ -88,14 +90,31 @@ export function StockLevelsPage() {
     <div>
       <h1 className="font-display text-4xl">{t("title")}</h1>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        <StatCard
-          label={t("totalValuation")}
-          value={valuation.data ? formatMoney(valuation.data.totalValue) : "—"}
-          icon={DollarSign}
-        />
-        <StatCard label={t("trackedWarehouses")} value={valuation.data?.byWarehouse.length ?? "—"} icon={Boxes} />
-        <StatCard label={t("lowStockCount")} value={lowStock.data?.meta.total ?? "—"} icon={AlertTriangle} />
+      <div className="mt-6">
+        {valuation.isError ? (
+          <ErrorState
+            description={userFacingError(valuation.error, t("valuationError"), tc("forbidden"))}
+            onRetry={() => valuation.refetch()}
+          />
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-3">
+            <StatCard
+              label={t("totalValuation")}
+              value={valuation.isLoading ? <Skeleton className="h-8 w-28" /> : formatMoney(valuation.data?.totalValue ?? "0")}
+              icon={DollarSign}
+            />
+            <StatCard
+              label={t("trackedWarehouses")}
+              value={valuation.isLoading ? <Skeleton className="h-8 w-12" /> : (valuation.data?.byWarehouse.length ?? 0)}
+              icon={Boxes}
+            />
+            <StatCard
+              label={t("lowStockCount")}
+              value={lowStock.isLoading ? <Skeleton className="h-8 w-12" /> : (lowStock.data?.meta.total ?? 0)}
+              icon={AlertTriangle}
+            />
+          </div>
+        )}
       </div>
 
       <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
@@ -130,7 +149,7 @@ export function StockLevelsPage() {
           data={stockLevels.data?.data ?? []}
           getRowId={(row) => row.id}
           isLoading={stockLevels.isLoading}
-          error={stockLevels.isError ? errorMessage(stockLevels.error, tc("error")) : undefined}
+          error={stockLevels.isError ? userFacingError(stockLevels.error, tc("error"), tc("forbidden")) : undefined}
           onRetry={() => stockLevels.refetch()}
           emptyTitle={t("empty")}
         />
@@ -142,7 +161,7 @@ export function StockLevelsPage() {
           data={lowStock.data?.data ?? []}
           getRowId={(row) => row.id}
           isLoading={lowStock.isLoading}
-          error={lowStock.isError ? errorMessage(lowStock.error, tc("error")) : undefined}
+          error={lowStock.isError ? userFacingError(lowStock.error, tc("error"), tc("forbidden")) : undefined}
           onRetry={() => lowStock.refetch()}
           emptyTitle={t("emptyLowStock")}
         />

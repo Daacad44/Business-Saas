@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/ui/stat-card";
 import { TabPanel, Tabs } from "@/components/ui/tabs";
 import { formatMoney } from "@/lib/format";
-import { errorMessage } from "@/lib/api-errors";
+import { userFacingError } from "@/lib/form-resolver";
 import { useHasPermission } from "@/lib/permissions";
 import { useAvailableCredit, useCustomer } from "@/features/customers/hooks";
 import { CreditLimitModal } from "./credit-limit-modal";
@@ -39,7 +39,7 @@ export function CustomerDetailPage({ customerId }: { customerId: string }) {
   }
 
   if (customer.isError || !customer.data) {
-    return <ErrorState description={errorMessage(customer.error, tc("error"))} onRetry={() => customer.refetch()} />;
+    return <ErrorState description={userFacingError(customer.error, tc("error"), tc("forbidden"))} onRetry={() => customer.refetch()} />;
   }
 
   const data = customer.data;
@@ -67,7 +67,10 @@ export function CustomerDetailPage({ customerId }: { customerId: string }) {
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
         <StatCard label={t("currentBalance")} value={formatMoney(data.currentBalance)} />
         <StatCard label={t("creditLimit")} value={formatMoney(data.creditLimit)} />
-        <StatCard label={t("availableCredit")} value={credit.data ? formatMoney(credit.data.availableCredit) : "—"} />
+        <StatCard
+          label={t("availableCredit")}
+          value={credit.isLoading ? <Skeleton className="h-8 w-24" /> : credit.data ? formatMoney(credit.data.availableCredit) : "—"}
+        />
       </div>
 
       {canUpdate ? (

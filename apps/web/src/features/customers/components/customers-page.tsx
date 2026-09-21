@@ -11,7 +11,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { SearchInput } from "@/components/ui/search-input";
 import { SelectField } from "@/components/ui/form-field";
 import { formatMoney } from "@/lib/format";
-import { errorMessage } from "@/lib/api-errors";
+import { userFacingError } from "@/lib/form-resolver";
 import { useHasPermission } from "@/lib/permissions";
 import { useCustomers } from "@/features/customers/hooks";
 import { useListState } from "@/features/inventory/lib/list-state";
@@ -27,6 +27,7 @@ export function CustomersPage() {
   const t = useTranslations("customers");
   const tc = useTranslations("common");
   const canCreate = useHasPermission("customers.create");
+  const canUpdate = useHasPermission("customers.update");
 
   const { state, setPage, setPageSize, setSearch, setFilter, toggleSort } = useListState<Filters>(
     { type: "", status: "" },
@@ -139,7 +140,7 @@ export function CustomersPage() {
           data={customers.data?.data ?? []}
           getRowId={(row) => row.id}
           isLoading={customers.isLoading}
-          error={customers.isError ? errorMessage(customers.error, tc("error")) : undefined}
+          error={customers.isError ? userFacingError(customers.error, tc("error"), tc("forbidden")) : undefined}
           onRetry={() => customers.refetch()}
           emptyTitle={t("empty")}
           emptyDescription={t("emptyDescription")}
@@ -147,7 +148,7 @@ export function CustomersPage() {
           sortDirection={state.sortDirection}
           onSortChange={toggleSort}
           rowActions={
-            canCreate
+            canUpdate
               ? (row) => (
                   <Button size="sm" variant="ghost" onClick={() => openEdit(row)}>
                     {tc("edit")}

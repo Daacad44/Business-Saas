@@ -8,7 +8,7 @@ import { Modal } from "@/components/ui/modal";
 import { NumberField } from "@/components/ui/form-field";
 import { useToast } from "@/components/ui/toast";
 import { formatMoney } from "@/lib/format";
-import { errorMessage } from "@/lib/api-errors";
+import { isNonNegativeDecimal, userFacingError } from "@/lib/form-resolver";
 import { useAvailableCredit, useUpdateCreditLimit } from "@/features/customers/hooks";
 
 export function CreditLimitModal({
@@ -30,18 +30,19 @@ export function CreditLimitModal({
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (updateCreditLimit.isPending) return;
     setError(undefined);
-    const numericValue = Number(value);
-    if (!Number.isFinite(numericValue) || numericValue < 0) {
+    const trimmed = value.trim();
+    if (!isNonNegativeDecimal(trimmed)) {
       setError(t("invalidCreditLimit"));
       return;
     }
     try {
-      await updateCreditLimit.mutateAsync({ id: customer.id, creditLimit: numericValue });
+      await updateCreditLimit.mutateAsync({ id: customer.id, creditLimit: Number(trimmed) });
       toast({ title: t("creditLimitUpdated"), variant: "success" });
       onClose();
     } catch (mutationError) {
-      setError(errorMessage(mutationError, tc("error")));
+      setError(userFacingError(mutationError, tc("error"), tc("forbidden")));
     }
   }
 

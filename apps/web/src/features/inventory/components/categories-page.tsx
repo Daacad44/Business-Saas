@@ -15,7 +15,7 @@ import { Modal } from "@/components/ui/modal";
 import { SelectField, TextareaField, TextField } from "@/components/ui/form-field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
-import { errorMessage, fieldErrorsFrom } from "@/lib/api-errors";
+import { applyFieldErrors, userFacingError, withBlankAsUndefined } from "@/lib/form-resolver";
 import { useHasPermission } from "@/lib/permissions";
 import {
   useCategories,
@@ -64,9 +64,11 @@ function CategoryFormModal({
   const pending = createCategory.isPending || updateCategory.isPending;
 
   const form = useForm<CategoryFormValues>({
-    resolver: zodResolver(
-      (isEdit ? updateCategorySchema : createCategorySchema) as unknown as ZodType<CategoryFormValues>,
-    ) as Resolver<CategoryFormValues>,
+    resolver: withBlankAsUndefined(
+      zodResolver(
+        (isEdit ? updateCategorySchema : createCategorySchema) as unknown as ZodType<CategoryFormValues>,
+      ) as Resolver<CategoryFormValues>,
+    ),
     defaultValues: {
       name: category?.name ?? "",
       parentId: category?.parentId ?? "",
@@ -103,12 +105,8 @@ function CategoryFormModal({
       }
       onClose();
     } catch (error) {
-      const fieldErrors = fieldErrorsFrom(error);
-      for (const [field, message] of Object.entries(fieldErrors)) {
-        form.setError(field as keyof CategoryFormValues, { message });
-      }
-      if (Object.keys(fieldErrors).length === 0) {
-        form.setError("parentId", { message: errorMessage(error, tc("error")) });
+      if (!applyFieldErrors(error, form.setError)) {
+        form.setError("parentId", { message: userFacingError(error, tc("error"), tc("forbidden")) });
       }
     }
   }
@@ -124,7 +122,7 @@ function CategoryFormModal({
           <Button type="button" variant="secondary" onClick={onClose} disabled={pending}>
             {tc("cancel")}
           </Button>
-          <Button type="submit" form="category-form" disabled={pending}>
+          <Button type="submit" form="category-form" disabled={pending || form.formState.isSubmitting}>
             {isEdit ? tc("save") : tc("create")}
           </Button>
         </>
@@ -252,7 +250,7 @@ export function CategoriesPage() {
       toast({ title: t("deleted"), variant: "success" });
       setDeletingCategory(null);
     } catch (error) {
-      setDeleteError(errorMessage(error, tc("error")));
+      setDeleteError(userFacingError(error, tc("error"), tc("forbidden")));
     }
   }
 
@@ -276,11 +274,15 @@ export function CategoriesPage() {
           </div>
         ) : categories.isError ? (
           <ErrorState
-            description={errorMessage(categories.error, tc("error"))}
+            description={userFacingError(categories.error, tc("error"), tc("forbidden"))}
             onRetry={() => categories.refetch()}
           />
         ) : roots.length === 0 ? (
-          <EmptyState title={t("empty")} description={t("emptyDescription")} />
+          <EmptyState
+            title={t("empty")}
+            description={t("emptyDescription")}
+            action={canCreate ? <Button onClick={openCreate}>{t("addCategory")}</Button> : undefined}
+          />
         ) : (
           <ul className="px-4">
             {roots.map((category) => (

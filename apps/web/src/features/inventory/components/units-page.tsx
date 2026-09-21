@@ -12,7 +12,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { Modal } from "@/components/ui/modal";
 import { TextField } from "@/components/ui/form-field";
 import { useToast } from "@/components/ui/toast";
-import { errorMessage, fieldErrorsFrom } from "@/lib/api-errors";
+import { applyFieldErrors, userFacingError, withBlankAsUndefined } from "@/lib/form-resolver";
 import { useHasPermission } from "@/lib/permissions";
 import { useCreateUnit, useDeleteUnit, useUnits, useUpdateUnit } from "@/features/inventory/hooks";
 
@@ -36,7 +36,9 @@ function UnitFormModal({
   const pending = createUnit.isPending || updateUnit.isPending;
 
   const form = useForm<UnitFormValues>({
-    resolver: zodResolver(isEdit ? updateUnitSchema : createUnitSchema) as Resolver<UnitFormValues>,
+    resolver: withBlankAsUndefined(
+      zodResolver(isEdit ? updateUnitSchema : createUnitSchema) as Resolver<UnitFormValues>,
+    ),
     defaultValues: { name: unit?.name ?? "", symbol: unit?.symbol ?? "" },
   });
 
@@ -56,12 +58,8 @@ function UnitFormModal({
       onClose();
       form.reset();
     } catch (error) {
-      const fieldErrors = fieldErrorsFrom(error);
-      for (const [field, message] of Object.entries(fieldErrors)) {
-        form.setError(field as keyof UnitFormValues, { message });
-      }
-      if (Object.keys(fieldErrors).length === 0) {
-        toast({ title: errorMessage(error, tc("error")), variant: "error" });
+      if (!applyFieldErrors(error, form.setError)) {
+        toast({ title: userFacingError(error, tc("error"), tc("forbidden")), variant: "error" });
       }
     }
   }
@@ -77,7 +75,7 @@ function UnitFormModal({
           <Button type="button" variant="secondary" onClick={onClose} disabled={pending}>
             {tc("cancel")}
           </Button>
-          <Button type="submit" form="unit-form" disabled={pending}>
+          <Button type="submit" form="unit-form" disabled={pending || form.formState.isSubmitting}>
             {isEdit ? tc("save") : tc("create")}
           </Button>
         </>
@@ -113,6 +111,7 @@ export function UnitsPage() {
   const [formOpen, setFormOpen] = React.useState(false);
   const [editingUnit, setEditingUnit] = React.useState<UnitSummary | null>(null);
   const [deletingUnit, setDeletingUnit] = React.useState<UnitSummary | null>(null);
+  const [deleteError, setDeleteError] = React.useState<string>();
 
   function openCreate() {
     setEditingUnit(null);
@@ -124,6 +123,11 @@ export function UnitsPage() {
     setFormOpen(true);
   }
 
+  function openDelete(unit: UnitSummary) {
+    setDeleteError(undefined);
+    setDeletingUnit(unit);
+  }
+
   async function confirmDelete() {
     if (!deletingUnit) return;
     try {
@@ -131,7 +135,7 @@ export function UnitsPage() {
       toast({ title: t("deleted"), variant: "success" });
       setDeletingUnit(null);
     } catch (error) {
-      toast({ title: errorMessage(error, tc("error")), variant: "error" });
+      setDeleteError(userFacingError(error, t("inUse"), tc("forbidden")));
     }
   }
 
@@ -154,9 +158,10 @@ export function UnitsPage() {
           data={units.data ?? []}
           getRowId={(row) => row.id}
           isLoading={units.isLoading}
-          error={units.isError ? errorMessage(units.error, tc("error")) : undefined}
+          error={units.isError ? userFacingError(units.error, tc("error"), tc("forbidden")) : undefined}
           onRetry={() => units.refetch()}
           emptyTitle={t("empty")}
+          emptyDescription={t("emptyDescription")}
           rowActions={
             canCreate
               ? (row) => (
@@ -164,7 +169,7 @@ export function UnitsPage() {
                     <Button size="sm" variant="ghost" onClick={() => openEdit(row)}>
                       {tc("edit")}
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setDeletingUnit(row)}>
+                    <Button size="sm" variant="ghost" onClick={() => openDelete(row)}>
                       {tc("delete")}
                     </Button>
                   </div>
@@ -181,7 +186,7 @@ export function UnitsPage() {
         onClose={() => setDeletingUnit(null)}
         onConfirm={confirmDelete}
         title={t("deleteTitle")}
-        description={t("deleteBody", { name: deletingUnit?.name ?? "" })}
+        description={deleteError ?? t("deleteBody", { name: deletingUnit?.name ?? "" })}
         destructive
         pending={deleteUnit.isPending}
       />

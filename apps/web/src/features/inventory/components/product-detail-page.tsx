@@ -8,7 +8,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatMoney, formatQuantity } from "@/lib/format";
-import { errorMessage } from "@/lib/api-errors";
+import { userFacingError } from "@/lib/form-resolver";
 import {
   useCategories,
   useProduct,
@@ -42,7 +42,7 @@ export function ProductDetailPage({ productId }: { productId: string }) {
   if (product.isError || !product.data) {
     return (
       <ErrorState
-        description={errorMessage(product.error, tc("error"))}
+        description={userFacingError(product.error, tc("error"), tc("forbidden"))}
         onRetry={() => product.refetch()}
       />
     );
@@ -137,7 +137,7 @@ export function ProductDetailPage({ productId }: { productId: string }) {
             data={variants.data ?? []}
             getRowId={(row) => row.id}
             isLoading={variants.isLoading}
-            error={variants.isError ? errorMessage(variants.error, tc("error")) : undefined}
+            error={variants.isError ? userFacingError(variants.error, tc("error"), tc("forbidden")) : undefined}
             onRetry={() => variants.refetch()}
             emptyTitle={t("noVariants")}
           />
@@ -153,7 +153,7 @@ export function ProductDetailPage({ productId }: { productId: string }) {
             data={stockLevels.data?.data ?? []}
             getRowId={(row) => row.id}
             isLoading={stockLevels.isLoading}
-            error={stockLevels.isError ? errorMessage(stockLevels.error, tc("error")) : undefined}
+            error={stockLevels.isError ? userFacingError(stockLevels.error, tc("error"), tc("forbidden")) : undefined}
             onRetry={() => stockLevels.refetch()}
             emptyTitle={t("noStock")}
           />
