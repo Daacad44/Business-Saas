@@ -231,6 +231,11 @@ enum MessageDeliveryStatus {
   UNDELIVERED
 }
 
+enum BusinessStatus {
+  ACTIVE
+  SUSPENDED
+}
+
 enum BusinessType {
   RETAIL
   WHOLESALE
@@ -294,17 +299,20 @@ model Session {
 }
 
 model Business {
-  id        String       @id @default(cuid())
-  name      String
-  slug      String       @unique
-  type      BusinessType
-  phone     String?
-  email     String?
-  currency  String       @default("USD")
-  timezone  String       @default("Africa/Mogadishu")
-  locale    String       @default("en")
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  id              String         @id @default(cuid())
+  name            String
+  slug            String         @unique
+  type            BusinessType
+  phone           String?
+  email           String?
+  currency        String         @default("USD")
+  timezone        String         @default("Africa/Mogadishu")
+  locale          String         @default("en")
+  status          BusinessStatus @default(ACTIVE)
+  suspendedAt     DateTime?
+  suspendedReason String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   settings    BusinessSettings?
   memberships Membership[]
@@ -363,6 +371,8 @@ model Business {
   whatsAppMessages      WhatsAppMessage[]
   smsMessages           SMSMessage[]
   emailMessages         EmailMessage[]
+
+  @@index([status])
 }
 
 model BusinessSettings {
