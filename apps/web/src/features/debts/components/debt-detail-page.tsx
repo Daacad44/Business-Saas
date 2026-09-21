@@ -4,7 +4,6 @@ import Link from "next/link";
 import * as React from "react";
 import { useTranslations } from "next-intl";
 import { ArrowLeft, Send } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { ErrorState } from "@/components/ui/error-state";
@@ -14,19 +13,10 @@ import { useToast } from "@/components/ui/toast";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
 import { isPositiveDecimal, userFacingError } from "@/lib/form-resolver";
 import { useHasPermission } from "@/lib/permissions";
-import { useDebt, useRemindDebt } from "@/features/debts/hooks";
+import { DebtStatusBadges } from "@/features/debts/components/debt-status-badges";
+import { useBusinessTimezone, useDebt, useRemindDebt } from "@/features/debts/hooks";
 import { RecordPaymentModal } from "./record-payment-modal";
-import type { DebtStatus, DebtPaymentSummary } from "@daljir/types";
-
-const STATUS_VARIANT: Record<DebtStatus, "neutral" | "info" | "warning" | "danger" | "success"> = {
-  PENDING: "neutral",
-  DUE_SOON: "info",
-  DUE_TODAY: "warning",
-  OVERDUE: "danger",
-  PARTIALLY_PAID: "info",
-  PAID: "success",
-  CANCELLED: "neutral",
-};
+import type { DebtPaymentSummary } from "@daljir/types";
 
 export function DebtDetailPage({ debtId }: { debtId: string }) {
   const t = useTranslations("debts");
@@ -36,6 +26,7 @@ export function DebtDetailPage({ debtId }: { debtId: string }) {
   const canRemind = useHasPermission("debts.remind");
 
   const debt = useDebt(debtId);
+  const { timeZone } = useBusinessTimezone();
   const remindDebt = useRemindDebt();
   const [paymentModalOpen, setPaymentModalOpen] = React.useState(false);
 
@@ -89,7 +80,12 @@ export function DebtDetailPage({ debtId }: { debtId: string }) {
             {t("dueDate")}: {formatDate(data.dueDate)}
           </p>
         </div>
-        <Badge variant={STATUS_VARIANT[data.status]}>{t(`status.${data.status}`)}</Badge>
+        <DebtStatusBadges
+          status={data.status}
+          dueDate={data.dueDate}
+          outstandingAmount={data.outstandingAmount}
+          timeZone={timeZone}
+        />
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
