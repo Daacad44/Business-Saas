@@ -12,6 +12,7 @@ import { businessesRouter } from "./modules/businesses/businesses.routes.js";
 import { customersRouter, debtsRouter } from "./modules/customers/customers.routes.js";
 import { permissionsRouter, rolesRouter } from "./modules/roles/roles.routes.js";
 import { invoicesRouter, salesRouter } from "./modules/sales/sales.routes.js";
+import { reportsRouter } from "./modules/reports/reports.routes.js";
 import { invitationsRouter, usersRouter } from "./modules/users/users.routes.js";
 import { warehousesRouter } from "./modules/warehouses/warehouses.routes.js";
 import { adminRouter } from "./modules/admin/admin.routes.js";
@@ -82,6 +83,7 @@ export function createApp() {
   app.use("/api/v1/payables", payablesRouter);
   app.use("/api/v1/expense-categories", expenseCategoriesRouter);
   app.use("/api/v1/expenses", expensesRouter);
+  app.use("/api/v1/reports", reportsRouter);
   app.use("/api/v1/admin", adminRouter);
 
   app.use(errorHandler);
