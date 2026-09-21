@@ -565,3 +565,185 @@ export type UpdateAutomationRuleInput = z.infer<typeof updateAutomationRuleSchem
 export type TestAutomationRuleInput = z.infer<typeof testAutomationRuleSchema>;
 export type CreateNotificationTemplateInput = z.infer<typeof createNotificationTemplateSchema>;
 export type UpdateNotificationTemplateInput = z.infer<typeof updateNotificationTemplateSchema>;
+
+// =====================================================================
+// PHASE 7 — REPORTS & ANALYTICS
+// =====================================================================
+
+const REPORT_MAX_RANGE_DAYS = 366;
+const REPORT_MAX_LIMIT = 200;
+const REPORT_DEFAULT_LIMIT = 50;
+const REPORT_MAX_PAGE = 10000;
+const REPORT_MAX_TOP_N = 100;
+
+function validateReportDateRange(
+  data: { startDate?: Date; endDate?: Date },
+  ctx: z.RefinementCtx,
+) {
+  if (!data.startDate || !data.endDate) return;
+  if (data.startDate.getTime() > data.endDate.getTime()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "startDate must be on or before endDate",
+      path: ["endDate"],
+    });
+    return;
+  }
+  const rangeMs = data.endDate.getTime() - data.startDate.getTime();
+  const maxMs = REPORT_MAX_RANGE_DAYS * 24 * 60 * 60 * 1000;
+  if (rangeMs > maxMs) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Date range cannot exceed ${REPORT_MAX_RANGE_DAYS} days`,
+      path: ["endDate"],
+    });
+  }
+}
+
+const reportGroupBySchema = z.enum(["day", "week", "month"]);
+const reportPageSchema = z.coerce.number().int().positive().max(REPORT_MAX_PAGE).default(1);
+const reportLimitSchema = z.coerce.number().int().positive().max(REPORT_MAX_LIMIT).default(REPORT_DEFAULT_LIMIT);
+const reportTopNSchema = z.coerce.number().int().positive().max(REPORT_MAX_TOP_N).default(10);
+const reportDateField = z.coerce.date().optional();
+
+export const reportDashboardQuerySchema = z.object({
+  asOf: reportDateField,
+});
+
+export const reportSalesQuerySchema = z
+  .object({
+    startDate: reportDateField,
+    endDate: reportDateField,
+    groupBy: reportGroupBySchema.default("day"),
+    branchId: z.string().min(1).optional(),
+    customerId: z.string().min(1).optional(),
+    page: reportPageSchema,
+    limit: reportLimitSchema,
+  })
+  .superRefine(validateReportDateRange);
+
+export const reportSalesBreakdownQuerySchema = z
+  .object({
+    startDate: reportDateField,
+    endDate: reportDateField,
+    page: reportPageSchema,
+    limit: reportLimitSchema,
+  })
+  .superRefine(validateReportDateRange);
+
+export const reportTopProductsQuerySchema = z
+  .object({
+    startDate: reportDateField,
+    endDate: reportDateField,
+    sortBy: z.enum(["quantity", "revenue"]).default("revenue"),
+    limit: reportTopNSchema,
+  })
+  .superRefine(validateReportDateRange);
+
+export const reportInventoryValuationQuerySchema = z.object({
+  warehouseId: z.string().min(1).optional(),
+  page: reportPageSchema,
+  limit: reportLimitSchema,
+});
+
+export const reportStockMovementSummaryQuerySchema = z
+  .object({
+    startDate: reportDateField,
+    endDate: reportDateField,
+    warehouseId: z.string().min(1).optional(),
+  })
+  .superRefine(validateReportDateRange);
+
+export const reportLowStockQuerySchema = z.object({
+  warehouseId: z.string().min(1).optional(),
+  page: reportPageSchema,
+  limit: reportLimitSchema,
+});
+
+export const reportExpiringBatchesQuerySchema = z.object({
+  warehouseId: z.string().min(1).optional(),
+  days: z.coerce.number().int().min(0).max(730).default(30),
+  page: reportPageSchema,
+  limit: reportLimitSchema,
+});
+
+export const reportSlowMovingQuerySchema = z.object({
+  warehouseId: z.string().min(1).optional(),
+  days: z.coerce.number().int().positive().max(365).default(30),
+  page: reportPageSchema,
+  limit: reportLimitSchema,
+});
+
+export const reportProfitQuerySchema = z
+  .object({
+    startDate: reportDateField,
+    endDate: reportDateField,
+    groupBy: reportGroupBySchema.default("day"),
+  })
+  .superRefine(validateReportDateRange);
+
+export const reportProfitByProductQuerySchema = z
+  .object({
+    startDate: reportDateField,
+    endDate: reportDateField,
+    page: reportPageSchema,
+    limit: reportLimitSchema,
+  })
+  .superRefine(validateReportDateRange);
+
+export const reportAgingQuerySchema = z.object({
+  asOf: reportDateField,
+  page: reportPageSchema,
+  limit: reportLimitSchema,
+});
+
+export const reportCollectionsQuerySchema = z
+  .object({
+    startDate: reportDateField,
+    endDate: reportDateField,
+  })
+  .superRefine(validateReportDateRange);
+
+export const reportPurchasesQuerySchema = z
+  .object({
+    startDate: reportDateField,
+    endDate: reportDateField,
+    groupBy: reportGroupBySchema.default("day"),
+    supplierId: z.string().min(1).optional(),
+    page: reportPageSchema,
+    limit: reportLimitSchema,
+  })
+  .superRefine(validateReportDateRange);
+
+export const reportExpensesQuerySchema = z
+  .object({
+    startDate: reportDateField,
+    endDate: reportDateField,
+    categoryId: z.string().min(1).optional(),
+    page: reportPageSchema,
+    limit: reportLimitSchema,
+  })
+  .superRefine(validateReportDateRange);
+
+export const reportPayablesQuerySchema = z.object({
+  supplierId: z.string().min(1).optional(),
+  page: reportPageSchema,
+  limit: reportLimitSchema,
+});
+
+export type ReportDashboardQuery = z.infer<typeof reportDashboardQuerySchema>;
+export type ReportSalesQuery = z.infer<typeof reportSalesQuerySchema>;
+export type ReportSalesBreakdownQuery = z.infer<typeof reportSalesBreakdownQuerySchema>;
+export type ReportTopProductsQuery = z.infer<typeof reportTopProductsQuerySchema>;
+export type ReportInventoryValuationQuery = z.infer<typeof reportInventoryValuationQuerySchema>;
+export type ReportStockMovementSummaryQuery = z.infer<typeof reportStockMovementSummaryQuerySchema>;
+export type ReportLowStockQuery = z.infer<typeof reportLowStockQuerySchema>;
+export type ReportExpiringBatchesQuery = z.infer<typeof reportExpiringBatchesQuerySchema>;
+export type ReportSlowMovingQuery = z.infer<typeof reportSlowMovingQuerySchema>;
+export type ReportProfitQuery = z.infer<typeof reportProfitQuerySchema>;
+export type ReportProfitByProductQuery = z.infer<typeof reportProfitByProductQuerySchema>;
+export type ReportAgingQuery = z.infer<typeof reportAgingQuerySchema>;
+export type ReportCollectionsQuery = z.infer<typeof reportCollectionsQuerySchema>;
+export type ReportPurchasesQuery = z.infer<typeof reportPurchasesQuerySchema>;
+export type ReportExpensesQuery = z.infer<typeof reportExpensesQuerySchema>;
+export type ReportPayablesQuery = z.infer<typeof reportPayablesQuerySchema>;
