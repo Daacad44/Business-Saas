@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { overdueDebtWhere, resolveBusinessTimezone } from "./timezone.js";
 
 export type CreditCheckResult = {
   allowed: boolean;
@@ -47,8 +48,13 @@ export async function checkCreditEligibility(
     };
   }
 
+  const timezone = await resolveBusinessTimezone(args.businessId, tx);
   const overdueDebt = await tx.customerDebt.findFirst({
-    where: { businessId: args.businessId, customerId: args.customerId, status: "OVERDUE" },
+    where: {
+      businessId: args.businessId,
+      customerId: args.customerId,
+      ...overdueDebtWhere(new Date(), timezone),
+    },
     select: { id: true },
   });
   if (overdueDebt) {

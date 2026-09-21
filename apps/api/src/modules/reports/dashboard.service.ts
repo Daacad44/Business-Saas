@@ -2,6 +2,7 @@ import { reportDashboardQuerySchema } from "@daljir/validation";
 import type { Request, Response } from "express";
 import { prisma } from "../../lib/prisma.js";
 import { sendData } from "../../lib/response.js";
+import { overdueDebtWhere, resolveBusinessTimezone } from "../customers/timezone.js";
 import { moneyStr, subtractMoney } from "./lib/decimal.js";
 import { dayStartUTC, exclusiveUpperBound, monthStartUTC, weekStartUTC } from "./lib/date-range.js";
 import { lowStockCount, revenueCostForRange } from "./lib/raw.js";
@@ -30,6 +31,7 @@ export async function getDashboard(req: Request, res: Response) {
   const query = parseReportQuery(reportDashboardQuerySchema, req.query);
   const asOf = query.asOf ?? new Date();
   const end = exclusiveUpperBound(asOf);
+  const timezone = await resolveBusinessTimezone(tenant.businessId);
 
   const [today, thisWeek, thisMonth, outstanding, lowStock, overdueDebtCount] = await Promise.all([
     periodSummary(tenant.businessId, dayStartUTC(asOf), end),
@@ -41,7 +43,7 @@ export async function getDashboard(req: Request, res: Response) {
     }),
     lowStockCount({ businessId: tenant.businessId }),
     prisma.customerDebt.count({
-      where: { businessId: tenant.businessId, outstandingAmount: { gt: 0 }, dueDate: { lt: asOf } },
+      where: { businessId: tenant.businessId, ...overdueDebtWhere(asOf, timezone) },
     }),
   ]);
 
