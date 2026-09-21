@@ -34,11 +34,3 @@ const parsed = notificationEnvSchema.safeParse(process.env);
 export const notificationEnv = parsed.success
   ? parsed.data
   : notificationEnvSchema.parse({});
-
-export const isWhatsAppConfigured = Boolean(
-  notificationEnv.WHATSAPP_API_URL && notificationEnv.WHATSAPP_API_TOKEN,
-);
-export const isSmsConfigured = Boolean(notificationEnv.SMS_API_URL && notificationEnv.SMS_API_KEY);
-export const isEmailConfigured = Boolean(
-  notificationEnv.SMTP_HOST && notificationEnv.SMTP_USER && notificationEnv.SMTP_PASSWORD,
-);
