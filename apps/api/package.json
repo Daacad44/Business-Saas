@@ -17,7 +17,7 @@
     "@daljir/notifications": "workspace:*",
     "@daljir/types": "workspace:*",
     "@daljir/validation": "workspace:*",
-    "@prisma/client": "^6.16.2",
+    "@prisma/client": "^6.19.3",
     "argon2": "^0.43.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",

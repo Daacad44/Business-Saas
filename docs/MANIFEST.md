@@ -4,7 +4,9 @@
 - `01-Product/PRD.md`
 - `02-Architecture/system-architecture.md`
 - `03-Database/data-model.md`
+- `03-Database/migration-rollback.md`
 - `03-Database/platform-admin-bootstrap.md`
+- `03-Database/reference-data.md`
 - `04-API/api-blueprint.md`
 - `04-API/transactional-invariants.md`
 - `05-RBAC/rbac-matrix.md`
