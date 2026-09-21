@@ -126,6 +126,17 @@
     "error": "Khalad ayaa dhacay",
     "retry": "Isku day mar kale",
     "cancel": "Jooji",
-    "close": "Xir"
+    "close": "Xir",
+    "confirm": "Xaqiiji",
+    "actions": "Ficillo",
+    "pagination": "Bogagga",
+    "search": "Raadi",
+    "clearSearch": "Nadiifi raadinta",
+    "noResults": "Wax natiijo ah lama helin",
+    "previousPage": "Bogga hore",
+    "nextPage": "Bogga xiga",
+    "rowsPerPage": "Safafka bog kasta",
+    "showingRange": "Waxaa la muujinayaa {from}\u2013{to} ee {total}",
+    "dismissNotification": "Iska daa ogeysiiska"
   }
 }

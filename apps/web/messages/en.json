@@ -126,6 +126,17 @@
     "error": "Something went wrong",
     "retry": "Retry",
     "cancel": "Cancel",
-    "close": "Close"
+    "close": "Close",
+    "confirm": "Confirm",
+    "actions": "Actions",
+    "pagination": "Pagination",
+    "search": "Search",
+    "clearSearch": "Clear search",
+    "noResults": "No results found",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "rowsPerPage": "Rows per page",
+    "showingRange": "Showing {from}\u2013{to} of {total}",
+    "dismissNotification": "Dismiss notification"
   }
 }
