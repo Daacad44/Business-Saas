@@ -7,12 +7,12 @@ import { Pagination } from "@/components/ui/pagination";
 import { StatCard } from "@/components/ui/stat-card";
 import { TabPanel, Tabs } from "@/components/ui/tabs";
 import { formatDate, formatMoney } from "@/lib/format";
-import { DateRangeBar, useReportDateRange } from "./date-range-bar";
+import { DateRangeBar, useReportDateRange, useReportPaging } from "./date-range-bar";
 import { ExportCsvButton } from "./export-button";
 import { ChartSkeleton, QueryPanel, ReportSectionSkeleton } from "./query-panel";
 import { BarChart, LineChart, patternForIndex } from "./svg-charts";
 import { useExpensesReport, usePurchasesReport } from "../hooks";
-import { REPORT_DEFAULT_LIMIT, REPORT_MAX_PAGE, REPORT_PAGE_SIZE_OPTIONS } from "../lib/constants";
+import { REPORT_MAX_PAGE, REPORT_PAGE_SIZE_OPTIONS } from "../lib/constants";
 import { toRangeQuery } from "../lib/dates";
 import { reportUserFacingError } from "../lib/errors";
 import type { ExpensesByCategoryRow, PurchasesBySupplierRow } from "../types";
@@ -21,15 +21,23 @@ export function PurchasesReportPage() {
   const t = useTranslations("reports");
   const tc = useTranslations("common");
   const err = (error: unknown) => reportUserFacingError(error, tc("error"), tc("forbidden"), t("validationError"));
-  const { range, setRange, groupBy, setGroupBy, issue, isValid } = useReportDateRange();
+  const { range, setRange: setRangeState, groupBy, setGroupBy: setGroupByState, issue, isValid } = useReportDateRange();
   const query = toRangeQuery(range);
-  const [tab, setTab] = React.useState("purchases");
-  const [page, setPage] = React.useState(1);
-  const [limit, setLimit] = React.useState(REPORT_DEFAULT_LIMIT);
+  const [tab, setTabState] = React.useState("purchases");
+  const { page, setPage, limit, setLimit } = useReportPaging();
 
-  React.useEffect(() => {
+  function setRange(next: typeof range) {
     setPage(1);
-  }, [range.startDate, range.endDate, groupBy, tab, limit]);
+    setRangeState(next);
+  }
+  function setGroupBy(next: typeof groupBy) {
+    setPage(1);
+    setGroupByState(next);
+  }
+  function setTab(next: string) {
+    setPage(1);
+    setTabState(next);
+  }
 
   const purchases = usePurchasesReport({ ...query, groupBy, page, limit }, isValid);
   const expenses = useExpensesReport({ ...query, page, limit }, isValid && tab === "expenses");

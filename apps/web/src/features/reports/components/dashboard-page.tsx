@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import {
@@ -31,7 +31,7 @@ function MetricCard({
   icon,
 }: {
   label: string;
-  value: React.ReactNode;
+  value: ReactNode;
   isLoading: boolean;
   isError: boolean;
   error?: string;

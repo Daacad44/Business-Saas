@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import { useTranslations } from "next-intl";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { Pagination } from "@/components/ui/pagination";
@@ -8,8 +7,9 @@ import { StatCard } from "@/components/ui/stat-card";
 import { formatMoney } from "@/lib/format";
 import { ExportCsvButton } from "./export-button";
 import { QueryPanel, ReportSectionSkeleton } from "./query-panel";
+import { useReportPaging } from "./date-range-bar";
 import { usePayablesReport } from "../hooks";
-import { REPORT_DEFAULT_LIMIT, REPORT_MAX_PAGE, REPORT_PAGE_SIZE_OPTIONS } from "../lib/constants";
+import { REPORT_MAX_PAGE, REPORT_PAGE_SIZE_OPTIONS } from "../lib/constants";
 import { reportUserFacingError } from "../lib/errors";
 import type { PayableSupplierRow } from "../types";
 
@@ -17,12 +17,7 @@ export function PayablesReportPage() {
   const t = useTranslations("reports");
   const tc = useTranslations("common");
   const err = (error: unknown) => reportUserFacingError(error, tc("error"), tc("forbidden"), t("validationError"));
-  const [page, setPage] = React.useState(1);
-  const [limit, setLimit] = React.useState(REPORT_DEFAULT_LIMIT);
-
-  React.useEffect(() => {
-    setPage(1);
-  }, [limit]);
+  const { page, setPage, limit, setLimit } = useReportPaging();
 
   const payables = usePayablesReport({ page, limit });
 

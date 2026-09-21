@@ -9,7 +9,7 @@ import { NumberField, SelectField } from "@/components/ui/form-field";
 import { StatCard } from "@/components/ui/stat-card";
 import { TabPanel, Tabs } from "@/components/ui/tabs";
 import { formatDate, formatMoney, formatQuantity } from "@/lib/format";
-import { DateRangeBar, useReportDateRange } from "./date-range-bar";
+import { DateRangeBar, useReportDateRange, useReportPaging } from "./date-range-bar";
 import { ExportCsvButton } from "./export-button";
 import { ChartSkeleton, QueryPanel, ReportSectionSkeleton } from "./query-panel";
 import { BarChart } from "./svg-charts";
@@ -21,7 +21,7 @@ import {
   useSlowMovingStock,
   useStockMovementSummary,
 } from "../hooks";
-import { REPORT_DEFAULT_LIMIT, REPORT_MAX_PAGE, REPORT_PAGE_SIZE_OPTIONS } from "../lib/constants";
+import { REPORT_MAX_PAGE, REPORT_PAGE_SIZE_OPTIONS } from "../lib/constants";
 import { toRangeQuery } from "../lib/dates";
 import { reportUserFacingError } from "../lib/errors";
 import type { ExpiringBatchRow, InventoryValuationWarehouseRow, LowStockRow, SlowMovingRow, StockMovementTypeRow } from "../types";
@@ -30,18 +30,34 @@ export function InventoryReportPage() {
   const t = useTranslations("reports");
   const tc = useTranslations("common");
   const err = (error: unknown) => reportUserFacingError(error, tc("error"), tc("forbidden"), t("validationError"));
-  const { range, setRange, issue, isValid } = useReportDateRange();
+  const { range, setRange: setRangeState, issue, isValid } = useReportDateRange();
   const query = toRangeQuery(range);
-  const [tab, setTab] = React.useState("valuation");
-  const [warehouseId, setWarehouseId] = React.useState("");
-  const [page, setPage] = React.useState(1);
-  const [limit, setLimit] = React.useState(REPORT_DEFAULT_LIMIT);
-  const [expiryDays, setExpiryDays] = React.useState(30);
-  const [slowDays, setSlowDays] = React.useState(30);
+  const [tab, setTabState] = React.useState("valuation");
+  const [warehouseId, setWarehouseIdState] = React.useState("");
+  const { page, setPage, limit, setLimit } = useReportPaging();
+  const [expiryDays, setExpiryDaysState] = React.useState(30);
+  const [slowDays, setSlowDaysState] = React.useState(30);
 
-  React.useEffect(() => {
+  function setRange(next: typeof range) {
     setPage(1);
-  }, [warehouseId, tab, limit, expiryDays, slowDays, range.startDate, range.endDate]);
+    setRangeState(next);
+  }
+  function setTab(next: string) {
+    setPage(1);
+    setTabState(next);
+  }
+  function setWarehouseId(next: string) {
+    setPage(1);
+    setWarehouseIdState(next);
+  }
+  function setExpiryDays(next: number) {
+    setPage(1);
+    setExpiryDaysState(next);
+  }
+  function setSlowDays(next: number) {
+    setPage(1);
+    setSlowDaysState(next);
+  }
 
   const warehouses = useReportWarehouses();
   const valuation = useInventoryValuation({

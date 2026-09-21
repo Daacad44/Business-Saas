@@ -1,18 +1,17 @@
 "use client";
 
-import * as React from "react";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { Pagination } from "@/components/ui/pagination";
 import { StatCard } from "@/components/ui/stat-card";
 import { formatDate, formatMoney, formatPercent, formatQuantity } from "@/lib/format";
-import { DateRangeBar, useReportDateRange } from "./date-range-bar";
+import { DateRangeBar, useReportDateRange, useReportPaging } from "./date-range-bar";
 import { ExportCsvButton } from "./export-button";
 import { ChartSkeleton, QueryPanel, ReportSectionSkeleton } from "./query-panel";
 import { BarChart } from "./svg-charts";
 import { useProfitByProduct, useProfitReport } from "../hooks";
-import { REPORT_DEFAULT_LIMIT, REPORT_MAX_PAGE, REPORT_PAGE_SIZE_OPTIONS } from "../lib/constants";
+import { REPORT_MAX_PAGE, REPORT_PAGE_SIZE_OPTIONS } from "../lib/constants";
 import { toRangeQuery } from "../lib/dates";
 import { reportUserFacingError } from "../lib/errors";
 import type { ProfitByProductRow } from "../types";
@@ -25,14 +24,18 @@ export function ProfitReportPage() {
   const t = useTranslations("reports");
   const tc = useTranslations("common");
   const err = (error: unknown) => reportUserFacingError(error, tc("error"), tc("forbidden"), t("validationError"));
-  const { range, setRange, groupBy, setGroupBy, issue, isValid } = useReportDateRange();
+  const { range, setRange: setRangeState, groupBy, setGroupBy: setGroupByState, issue, isValid } = useReportDateRange();
   const query = toRangeQuery(range);
-  const [page, setPage] = React.useState(1);
-  const [limit, setLimit] = React.useState(REPORT_DEFAULT_LIMIT);
+  const { page, setPage, limit, setLimit } = useReportPaging();
 
-  React.useEffect(() => {
+  function setRange(next: typeof range) {
     setPage(1);
-  }, [range.startDate, range.endDate, groupBy, limit]);
+    setRangeState(next);
+  }
+  function setGroupBy(next: typeof groupBy) {
+    setPage(1);
+    setGroupByState(next);
+  }
 
   const profit = useProfitReport({ ...query, groupBy }, isValid);
   const byProduct = useProfitByProduct({ ...query, page, limit }, isValid);

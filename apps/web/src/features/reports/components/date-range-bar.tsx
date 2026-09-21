@@ -11,8 +11,18 @@ import {
   minStartDateFor,
   type DateRangeState,
 } from "../lib/dates";
-import { REPORT_GROUP_BY_OPTIONS } from "../lib/constants";
+import { REPORT_DEFAULT_LIMIT, REPORT_GROUP_BY_OPTIONS } from "../lib/constants";
 import type { ReportGroupBy } from "../types";
+
+export function useReportPaging(initialLimit = REPORT_DEFAULT_LIMIT) {
+  const [page, setPage] = React.useState(1);
+  const [limit, setLimitState] = React.useState(initialLimit);
+  const setLimit = (next: number) => {
+    setPage(1);
+    setLimitState(next);
+  };
+  return { page, setPage, limit, setLimit };
+}
 
 export function useReportDateRange() {
   const defaults = React.useMemo(() => defaultDateRange(), []);

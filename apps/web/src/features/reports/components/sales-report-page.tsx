@@ -8,7 +8,7 @@ import { SelectField } from "@/components/ui/form-field";
 import { StatCard } from "@/components/ui/stat-card";
 import { TabPanel, Tabs } from "@/components/ui/tabs";
 import { formatDate, formatMoney, formatQuantity } from "@/lib/format";
-import { DateRangeBar, LimitSelect, useReportDateRange } from "./date-range-bar";
+import { DateRangeBar, LimitSelect, useReportDateRange, useReportPaging } from "./date-range-bar";
 import { ExportCsvButton } from "./export-button";
 import { ChartSkeleton, QueryPanel, ReportSectionSkeleton } from "./query-panel";
 import { BarChart, LineChart } from "./svg-charts";
@@ -20,7 +20,7 @@ import {
   useSalesReport,
   useTopProducts,
 } from "../hooks";
-import { REPORT_DEFAULT_LIMIT, REPORT_DEFAULT_TOP_N, REPORT_MAX_PAGE, REPORT_PAGE_SIZE_OPTIONS, REPORT_TOP_N_OPTIONS } from "../lib/constants";
+import { REPORT_DEFAULT_TOP_N, REPORT_MAX_PAGE, REPORT_PAGE_SIZE_OPTIONS, REPORT_TOP_N_OPTIONS } from "../lib/constants";
 import { toRangeQuery } from "../lib/dates";
 import { reportUserFacingError } from "../lib/errors";
 import type {
@@ -40,17 +40,25 @@ function useReportError() {
 export function SalesReportPage() {
   const t = useTranslations("reports");
   const err = useReportError();
-  const { range, setRange, groupBy, setGroupBy, issue, isValid } = useReportDateRange();
+  const { range, setRange: setRangeState, groupBy, setGroupBy: setGroupByState, issue, isValid } = useReportDateRange();
   const query = toRangeQuery(range);
-  const [tab, setTab] = React.useState("branch");
-  const [page, setPage] = React.useState(1);
-  const [limit, setLimit] = React.useState(REPORT_DEFAULT_LIMIT);
+  const [tab, setTabState] = React.useState("branch");
+  const { page, setPage, limit, setLimit } = useReportPaging();
   const [topN, setTopN] = React.useState(REPORT_DEFAULT_TOP_N);
   const [topSort, setTopSort] = React.useState<"revenue" | "quantity">("revenue");
 
-  React.useEffect(() => {
+  function setRange(next: typeof range) {
     setPage(1);
-  }, [range.startDate, range.endDate, groupBy, tab, limit]);
+    setRangeState(next);
+  }
+  function setGroupBy(next: typeof groupBy) {
+    setPage(1);
+    setGroupByState(next);
+  }
+  function setTab(next: string) {
+    setPage(1);
+    setTabState(next);
+  }
 
   const sales = useSalesReport({ ...query, groupBy }, isValid);
   const byBranch = useSalesByBranch({ ...query, page, limit }, isValid && tab === "branch");

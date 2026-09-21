@@ -9,12 +9,12 @@ import { Pagination } from "@/components/ui/pagination";
 import { StatCard } from "@/components/ui/stat-card";
 import { TabPanel, Tabs } from "@/components/ui/tabs";
 import { formatMoney } from "@/lib/format";
-import { DateRangeBar, useReportDateRange } from "./date-range-bar";
+import { DateRangeBar, useReportDateRange, useReportPaging } from "./date-range-bar";
 import { ExportCsvButton } from "./export-button";
 import { ChartSkeleton, QueryPanel, ReportSectionSkeleton } from "./query-panel";
 import { BarChart, patternForIndex } from "./svg-charts";
 import { useCollectionsSummary, useReceivablesAging } from "../hooks";
-import { REPORT_DEFAULT_LIMIT, REPORT_MAX_PAGE, REPORT_PAGE_SIZE_OPTIONS } from "../lib/constants";
+import { REPORT_MAX_PAGE, REPORT_PAGE_SIZE_OPTIONS } from "../lib/constants";
 import { toRangeQuery } from "../lib/dates";
 import { reportUserFacingError } from "../lib/errors";
 import type { AgingBucketKey, AgingByCustomerRow, CollectionsByMethodRow } from "../types";
@@ -31,15 +31,15 @@ export function ReceivablesReportPage() {
   const t = useTranslations("reports");
   const tc = useTranslations("common");
   const err = (error: unknown) => reportUserFacingError(error, tc("error"), tc("forbidden"), t("validationError"));
-  const { range, setRange, issue, isValid } = useReportDateRange();
+  const { range, setRange: setRangeState, issue, isValid } = useReportDateRange();
   const query = toRangeQuery(range);
   const [tab, setTab] = React.useState("aging");
-  const [page, setPage] = React.useState(1);
-  const [limit, setLimit] = React.useState(REPORT_DEFAULT_LIMIT);
+  const { page, setPage, limit, setLimit } = useReportPaging();
 
-  React.useEffect(() => {
+  function setRange(next: typeof range) {
     setPage(1);
-  }, [limit]);
+    setRangeState(next);
+  }
 
   const aging = useReceivablesAging({ page, limit });
   const collections = useCollectionsSummary(query, isValid && tab === "collections");
