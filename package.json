@@ -29,6 +29,7 @@
     "db:migrate": "pnpm --filter @daljir/database migrate",
     "db:migrate:deploy": "pnpm --filter @daljir/database migrate:deploy",
     "db:seed": "pnpm --filter @daljir/database seed",
-    "db:studio": "pnpm --filter @daljir/database studio"
+    "db:studio": "pnpm --filter @daljir/database studio",
+    "admin:bootstrap": "pnpm --filter @daljir/api admin:bootstrap"
   }
 }

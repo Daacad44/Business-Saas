@@ -1,13 +1,17 @@
 # Database Blueprint
 
 ## Identity
-User
+User (`platformRole`: `USER` or `SUPER_ADMIN`; platform scope, not tenant RBAC)
 Role
 Permission
 RolePermission
 Membership
 Invitation
 Session
+
+Operator bootstrap of the first platform `SUPER_ADMIN` is a one-shot shell
+command documented in [`platform-admin-bootstrap.md`](./platform-admin-bootstrap.md).
+It is not run at API startup.
 
 ## Business
 Business

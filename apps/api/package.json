@@ -9,7 +9,8 @@
     "start": "node --import tsx dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "tsc -p tsconfig.json --noEmit"
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "admin:bootstrap": "tsx src/scripts/bootstrap-admin.ts"
   },
   "dependencies": {
     "@daljir/database": "workspace:*",
