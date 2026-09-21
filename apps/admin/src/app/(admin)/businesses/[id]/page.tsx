@@ -150,7 +150,7 @@ export default function AdminBusinessDetailPage() {
 
           {data.status === "SUSPENDED" ? (
             <Card className="border-red-200 bg-red-50 text-red-900">
-              <p className="text-sm font-semibold">This business is suspended and its owner cannot sign in.</p>
+              <p className="text-sm font-semibold">This business is suspended. Owner and staff cannot access tenant operations until it is reactivated.</p>
               {data.suspendedReason ? <p className="mt-1 text-sm">Reason: {data.suspendedReason}</p> : null}
               {data.suspendedAt ? <p className="mt-1 text-xs opacity-80">Since {formatDateTime(data.suspendedAt)}</p> : null}
             </Card>
