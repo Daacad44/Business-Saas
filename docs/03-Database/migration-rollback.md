@@ -337,6 +337,9 @@ of the following are true:
 - [ ] Application smoke checks (Section 4.2) pass in the deployed environment.
 - [ ] If this migration was a compensating/rollback migration (Section 3),
       the incident that necessitated it has a written postmortem.
+- [ ] Permission catalog is present (`pnpm db:migrate:deploy` includes the
+      reference sync). See Section 6. `prisma migrate deploy` alone is not a
+      complete production database bring-up.
 
 ---
 
@@ -350,3 +353,22 @@ every schema change (including rollbacks) and after any dependency bump in
 `packages/database` (e.g. `@types/node`, `typescript`, `prisma`,
 `@prisma/client`) as part of this runbook's verification step, not just as a
 one-off developer convenience.
+
+---
+
+## 6. Permission Catalog (Reference Data)
+
+`pnpm db:migrate:deploy` now applies schema migrations **and** the permission
+catalog sync. That catalog is not stored in migration SQL (and must not be
+added there — existing migration files are immutable). Without it, onboarding
+creates an Owner with zero permissions and tenant routes return 403.
+
+Production sequence:
+
+1. `pnpm db:migrate:deploy` (migrations + `syncReferenceData`)
+2. Start the API (startup repeats the same sync under `pg_advisory_xact_lock`;
+   failure is fatal — the process does not listen)
+3. Never run `pnpm db:seed` / `pnpm db:seed:demo` against staging or production
+
+Full behaviour, concurrency, and tenant-safety notes:
+`docs/03-Database/reference-data.md`.

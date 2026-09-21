@@ -15,6 +15,11 @@ export async function provisionBusinessRoles(
   client: Prisma.TransactionClient | typeof prisma = prisma,
 ) {
   const permissions = await client.permission.findMany();
+  if (permissions.length === 0) {
+    throw new Error(
+      "Permission catalog is empty. Run pnpm db:sync-reference (or restart the API) before onboarding.",
+    );
+  }
   const byKey = new Map(permissions.map((permission) => [permission.key, permission.id]));
 
   await client.role.createMany({

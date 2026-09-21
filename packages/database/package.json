@@ -16,9 +16,12 @@
   "scripts": {
     "generate": "prisma generate --schema ../../prisma/schema.prisma",
     "migrate": "prisma migrate dev --schema ../../prisma/schema.prisma",
-    "migrate:deploy": "prisma migrate deploy --schema ../../prisma/schema.prisma",
+    "migrate:deploy": "prisma migrate deploy --schema ../../prisma/schema.prisma && tsx src/run-sync-reference.ts",
+    "sync-reference": "tsx src/run-sync-reference.ts",
     "seed": "tsx src/seed.ts",
-    "studio": "prisma studio --schema ../../prisma/schema.prisma"
+    "seed:demo": "tsx src/seed-demo.ts",
+    "studio": "prisma studio --schema ../../prisma/schema.prisma",
+    "lint": "tsc -p tsconfig.json --noEmit"
   },
   "prisma": {
     "schema": "../../prisma/schema.prisma",
@@ -26,11 +29,11 @@
   },
   "dependencies": {
     "@daljir/types": "workspace:*",
-    "@prisma/client": "^6.16.2"
+    "@prisma/client": "^6.19.3"
   },
   "devDependencies": {
     "@types/node": "^24.5.2",
-    "prisma": "^6.16.2",
+    "prisma": "^6.19.3",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2"
   }
