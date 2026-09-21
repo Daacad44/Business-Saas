@@ -1,0 +1,8 @@
+export { batchesRouter } from "./batches.routes.js";
+export { categoriesRouter } from "./categories.routes.js";
+export { productsRouter } from "./products.routes.js";
+export { stockAdjustmentsRouter } from "./stock-adjustments.routes.js";
+export { stockLevelsRouter } from "./stock-levels.routes.js";
+export { stockMovementsRouter } from "./stock-movements.routes.js";
+export { stockTransfersRouter } from "./stock-transfers.routes.js";
+export { unitsRouter } from "./units.routes.js";
