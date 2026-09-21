@@ -675,6 +675,8 @@ model StockLevel {
   product   Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
   variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
+  automationExecutions AutomationExecution[]
+
   @@unique([businessId, warehouseId, productId, variantId])
   @@index([businessId, warehouseId])
   @@index([businessId, productId])
@@ -1419,6 +1421,7 @@ model AutomationExecution {
   ruleId         String
   triggerId      String?
   debtId         String?
+  stockLevelId   String?
   status         AutomationExecutionStatus @default(PENDING)
   idempotencyKey String                    @unique
   attempt        Int                       @default(1)
@@ -1427,15 +1430,17 @@ model AutomationExecution {
   createdAt      DateTime                  @default(now())
   updatedAt      DateTime                  @updatedAt
 
-  business Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  rule     AutomationRule     @relation(fields: [ruleId], references: [id], onDelete: Cascade)
-  trigger  AutomationTrigger? @relation(fields: [triggerId], references: [id], onDelete: SetNull)
-  debt     CustomerDebt?      @relation(fields: [debtId], references: [id], onDelete: SetNull)
+  business   Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  rule       AutomationRule     @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  trigger    AutomationTrigger? @relation(fields: [triggerId], references: [id], onDelete: SetNull)
+  debt       CustomerDebt?      @relation(fields: [debtId], references: [id], onDelete: SetNull)
+  stockLevel StockLevel?        @relation(fields: [stockLevelId], references: [id], onDelete: SetNull)
 
   notifications Notification[]
 
   @@index([businessId, ruleId])
   @@index([businessId, debtId])
+  @@index([businessId, stockLevelId])
   @@index([businessId, status])
 }
 

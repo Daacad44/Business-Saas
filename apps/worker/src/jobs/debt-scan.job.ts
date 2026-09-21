@@ -1,7 +1,7 @@
 import { prisma } from "../lib/prisma.js";
 import { logger } from "../lib/logger.js";
-import { attemptCreateExecution } from "../automation/create-execution.js";
-import { findMatchingDebts } from "../automation/trigger-evaluator.js";
+import { attemptCreateExecution, attemptCreateStockExecution } from "../automation/create-execution.js";
+import { findLowStockMatches, findMatchingDebts } from "../automation/trigger-evaluator.js";
 
 export type DebtScanResult = {
   businessesScanned: number;
@@ -12,11 +12,11 @@ export type DebtScanResult = {
 };
 
 /**
- * Scans `CustomerDebt` rows across ALL businesses for upcoming due-dates
- * and overdue balances, evaluating each business's own active
- * `AutomationRule` set against ONLY that business's own debts (strict
- * per-business isolation — every read and write below carries the
- * `businessId` it was scoped from).
+ * Scans `CustomerDebt` rows (due-date/overdue triggers) AND `StockLevel`
+ * rows (LOW_STOCK triggers) across ALL businesses, evaluating each
+ * business's own active `AutomationRule` set against ONLY that
+ * business's own data (strict per-business isolation — every read and
+ * write below carries the `businessId` it was scoped from).
  *
  * For every match it atomically creates (or no-ops on) an
  * `AutomationExecution` and, only for a freshly created execution,
@@ -38,6 +38,34 @@ export async function runDebtScan(enqueueDispatch: (executionId: string) => Prom
     businessIds.add(rule.businessId);
 
     for (const trigger of rule.triggers) {
+      if (trigger.type === "LOW_STOCK") {
+        const stockMatches = await findLowStockMatches(rule.businessId);
+
+        for (const match of stockMatches) {
+          // Defensive re-assertion of tenant scoping even though
+          // `findLowStockMatches` already filters by businessId.
+          if (match.businessId !== rule.businessId) {
+            logger.error("Cross-business stock leak detected — skipping", {
+              businessId: rule.businessId,
+              stockBusinessId: match.businessId,
+              stockLevelId: match.stockLevelId,
+            });
+            continue;
+          }
+
+          matchesFound += 1;
+          const { created, executionId } = await attemptCreateStockExecution(rule.businessId, rule.id, trigger, match.stockLevelId);
+
+          if (created) {
+            executionsCreated += 1;
+            await enqueueDispatch(executionId);
+          } else {
+            executionsSkipped += 1;
+          }
+        }
+        continue;
+      }
+
       const debts = await findMatchingDebts(rule.businessId, trigger);
 
       for (const debt of debts) {
