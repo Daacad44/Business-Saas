@@ -11,6 +11,7 @@ import { branchesRouter } from "./modules/branches/branches.routes.js";
 import { businessesRouter } from "./modules/businesses/businesses.routes.js";
 import { customersRouter, debtsRouter } from "./modules/customers/customers.routes.js";
 import { permissionsRouter, rolesRouter } from "./modules/roles/roles.routes.js";
+import { invoicesRouter, salesRouter } from "./modules/sales/sales.routes.js";
 import { invitationsRouter, usersRouter } from "./modules/users/users.routes.js";
 import { warehousesRouter } from "./modules/warehouses/warehouses.routes.js";
 import { adminRouter } from "./modules/admin/admin.routes.js";
@@ -49,6 +50,8 @@ export function createApp() {
   app.use("/api/v1/warehouses", warehousesRouter);
   app.use("/api/v1/customers", customersRouter);
   app.use("/api/v1/debts", debtsRouter);
+  app.use("/api/v1/sales", salesRouter);
+  app.use("/api/v1/invoices", invoicesRouter);
   app.use("/api/v1/admin", adminRouter);
 
   app.use(errorHandler);
