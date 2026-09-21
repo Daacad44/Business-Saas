@@ -122,7 +122,11 @@ describe("checkCreditEligibility", () => {
     expect(result.reason).toBe("CUSTOMER_DISABLED");
   });
 
-  it("returns OVERDUE_DEBT when the customer has an overdue debt", async () => {
+  it("returns OVERDUE_DEBT when the customer has an overdue outstanding debt under their credit limit", async () => {
+    // Contract change: this used to seed `status: "OVERDUE"`. Nothing in
+    // the product writes that enum value, so the previous assertion encoded
+    // the bug (OVERDUE_DEBT was only reachable via a status no code sets).
+    // Overdue is now derived from dueDate + outstanding balance.
     const owner = await registerAndOnboard(app, "CreditCheckOverdue");
     const create = await owner.agent.post("/api/v1/customers").send({
       fullName: "Overdue Customer",
@@ -139,7 +143,7 @@ describe("checkCreditEligibility", () => {
       customerId,
       principal: "50.00",
       dueDate: pastDue,
-      status: "OVERDUE",
+      status: "PENDING",
     });
 
     const result = await prisma.$transaction((tx) =>
@@ -147,6 +151,76 @@ describe("checkCreditEligibility", () => {
     );
     expect(result.allowed).toBe(false);
     expect(result.reason).toBe("OVERDUE_DEBT");
+    expect(result.availableCredit).toBe("950.00");
+  });
+
+  it("does not treat a stored OVERDUE status as overdue when the dueDate is still in the future", async () => {
+    const owner = await registerAndOnboard(app, "CreditCheckDeadStatus");
+    const create = await owner.agent.post("/api/v1/customers").send({
+      fullName: "Dead Status Customer",
+      creditLimit: 1000,
+    });
+    const customerId = create.body.data.id as string;
+
+    const futureDue = new Date();
+    futureDue.setDate(futureDue.getDate() + 14);
+    await createDebtFixture({
+      businessId: owner.businessId,
+      branchId: owner.branchId,
+      warehouseId: owner.warehouseId,
+      customerId,
+      principal: "50.00",
+      dueDate: futureDue,
+      status: "OVERDUE",
+    });
+
+    const result = await prisma.$transaction((tx) =>
+      checkCreditEligibility(tx, { businessId: owner.businessId, customerId, amount: "10" }),
+    );
+    expect(result.allowed).toBe(true);
+    expect(result.reason).toBeUndefined();
+  });
+
+  it("returns LIMIT_EXCEEDED from inside an outer prisma.$transaction after other writes", async () => {
+    const owner = await registerAndOnboard(app, "CreditCheckTxOuter");
+    const create = await owner.agent.post("/api/v1/customers").send({
+      fullName: "Tx Customer",
+      creditLimit: 100,
+    });
+    const customerId = create.body.data.id as string;
+
+    await createDebtFixture({
+      businessId: owner.businessId,
+      branchId: owner.branchId,
+      warehouseId: owner.warehouseId,
+      customerId,
+      principal: "80.00",
+      status: "PENDING",
+    });
+
+    const result = await prisma.$transaction(async (tx) => {
+      await tx.customer.update({
+        where: { id: customerId },
+        data: { notes: "before-credit-check" },
+      });
+      const check = await checkCreditEligibility(tx, {
+        businessId: owner.businessId,
+        customerId,
+        amount: "50",
+      });
+      await tx.customer.update({
+        where: { id: customerId },
+        data: { notes: "after-credit-check" },
+      });
+      return check;
+    });
+
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toBe("LIMIT_EXCEEDED");
+    expect(result.availableCredit).toBe("20.00");
+
+    const customer = await prisma.customer.findUnique({ where: { id: customerId } });
+    expect(customer?.notes).toBe("after-credit-check");
   });
 });
 
