@@ -11,6 +11,9 @@ import { Button } from "./ui/button";
 
 const links = [
   { href: "/dashboard", key: "dashboard" },
+  { href: "/pos", key: "pos" },
+  { href: "/sales", key: "sales" },
+  { href: "/invoices", key: "invoices" },
   { href: "/inventory/products", key: "products" },
   { href: "/inventory/categories", key: "categories" },
   { href: "/inventory/units", key: "units" },
