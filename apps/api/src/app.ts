@@ -7,9 +7,12 @@ import { forbidden } from "./lib/errors.js";
 import { sendData } from "./lib/response.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
+import { automationRouter } from "./modules/automation/automation.routes.js";
 import { branchesRouter } from "./modules/branches/branches.routes.js";
 import { businessesRouter } from "./modules/businesses/businesses.routes.js";
+import { notificationsRouter } from "./modules/notifications/notifications.routes.js";
 import { permissionsRouter, rolesRouter } from "./modules/roles/roles.routes.js";
+import { reportsRouter } from "./modules/reports/reports.routes.js";
 import { invitationsRouter, usersRouter } from "./modules/users/users.routes.js";
 import { warehousesRouter } from "./modules/warehouses/warehouses.routes.js";
 import { adminRouter } from "./modules/admin/admin.routes.js";
@@ -46,7 +49,10 @@ export function createApp() {
   app.use("/api/v1/permissions", permissionsRouter);
   app.use("/api/v1/branches", branchesRouter);
   app.use("/api/v1/warehouses", warehousesRouter);
+  app.use("/api/v1/reports", reportsRouter);
   app.use("/api/v1/admin", adminRouter);
+  app.use("/api/v1/automation", automationRouter);
+  app.use("/api/v1/notifications", notificationsRouter);
 
   app.use(errorHandler);
   return app;
