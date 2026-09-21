@@ -3,11 +3,29 @@ import type { Request } from "express";
 
 type DecimalLike = Prisma.Decimal | null | undefined;
 
-export function decimalToString(value: DecimalLike): string | null {
+/**
+ * Platform-wide serialization convention (see `customers/serialize.ts` and
+ * `reports/lib/decimal.ts`): money fields render as a fixed 2-decimal
+ * string, quantity fields as a fixed 3-decimal string. Never a bare
+ * `.toString()`, which produces a variable number of decimals depending on
+ * the underlying `Prisma.Decimal`'s trailing zeros.
+ */
+export function money(value: DecimalLike): string | null {
   if (value === null || value === undefined) {
     return null;
   }
-  return value.toString();
+  return value.toFixed(2);
+}
+
+export function qty(value: DecimalLike): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  return value.toFixed(3);
+}
+
+export function decimalToString(value: DecimalLike): string | null {
+  return money(value);
 }
 
 export function serializeProduct<
@@ -20,10 +38,10 @@ export function serializeProduct<
 >(product: T) {
   return {
     ...product,
-    costPrice: product.costPrice.toString(),
-    sellingPrice: product.sellingPrice.toString(),
-    taxRate: product.taxRate.toString(),
-    lowStockThreshold: decimalToString(product.lowStockThreshold),
+    costPrice: money(product.costPrice),
+    sellingPrice: money(product.sellingPrice),
+    taxRate: money(product.taxRate),
+    lowStockThreshold: qty(product.lowStockThreshold),
   };
 }
 
@@ -32,8 +50,8 @@ export function serializeVariant<
 >(variant: T) {
   return {
     ...variant,
-    costPrice: variant.costPrice.toString(),
-    sellingPrice: variant.sellingPrice.toString(),
+    costPrice: money(variant.costPrice),
+    sellingPrice: money(variant.sellingPrice),
   };
 }
 
@@ -42,8 +60,8 @@ export function serializeBatch<
 >(batch: T) {
   return {
     ...batch,
-    quantity: batch.quantity.toString(),
-    costPrice: decimalToString(batch.costPrice),
+    quantity: qty(batch.quantity),
+    costPrice: money(batch.costPrice),
   };
 }
 
@@ -56,9 +74,9 @@ export function serializeStockLevel<
 >(level: T) {
   return {
     ...level,
-    quantity: level.quantity.toString(),
-    reservedQuantity: level.reservedQuantity.toString(),
-    reorderLevel: decimalToString(level.reorderLevel),
+    quantity: qty(level.quantity),
+    reservedQuantity: qty(level.reservedQuantity),
+    reorderLevel: qty(level.reorderLevel),
   };
 }
 
@@ -67,8 +85,8 @@ export function serializeMovement<
 >(movement: T) {
   return {
     ...movement,
-    quantity: movement.quantity.toString(),
-    unitCost: decimalToString(movement.unitCost),
+    quantity: qty(movement.quantity),
+    unitCost: money(movement.unitCost),
   };
 }
 
@@ -77,15 +95,15 @@ export function serializeAdjustmentItem<
 >(item: T) {
   return {
     ...item,
-    quantityDelta: item.quantityDelta.toString(),
-    unitCost: decimalToString(item.unitCost),
+    quantityDelta: qty(item.quantityDelta),
+    unitCost: money(item.unitCost),
   };
 }
 
 export function serializeTransferItem<T extends { quantity: Prisma.Decimal }>(item: T) {
   return {
     ...item,
-    quantity: item.quantity.toString(),
+    quantity: qty(item.quantity),
   };
 }
 
