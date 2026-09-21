@@ -38,7 +38,7 @@ export function CustomerPicker({
   const [draft, setDraft] = React.useState("");
   const [debounced, setDebounced] = React.useState("");
   const [open, setOpen] = React.useState(false);
-  const [highlight, setHighlight] = React.useState(0);
+  const [highlightState, setHighlightState] = React.useState({ key: "", index: 0 });
 
   React.useEffect(() => {
     const handle = window.setTimeout(() => setDebounced(draft.trim()), 250);
@@ -53,10 +53,13 @@ export function CustomerPicker({
   });
 
   const rows = customers.data?.data ?? [];
+  const resultsKey = `${debounced}:${customers.dataUpdatedAt}`;
+  const highlight = highlightState.key === resultsKey ? highlightState.index : 0;
 
-  React.useEffect(() => {
-    setHighlight(0);
-  }, [debounced, customers.dataUpdatedAt]);
+  function setHighlight(index: number | ((current: number) => number)) {
+    const next = typeof index === "function" ? index(highlight) : index;
+    setHighlightState({ key: resultsKey, index: next });
+  }
 
   React.useEffect(() => {
     function onPointerDown(event: MouseEvent) {

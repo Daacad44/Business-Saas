@@ -50,17 +50,6 @@ export function SaleReturnPage({ saleId }: { saleId: string }) {
   const [lineError, setLineError] = React.useState<string | null>(null);
   const [reason, setReason] = React.useState("");
   const [quantities, setQuantities] = React.useState<Record<string, string>>({});
-  const initialized = React.useRef(false);
-
-  React.useEffect(() => {
-    if (!sale.data || initialized.current) return;
-    initialized.current = true;
-    const initial: Record<string, string> = {};
-    for (const item of sale.data.items) {
-      initial[item.id] = "0";
-    }
-    setQuantities(initial);
-  }, [sale.data]);
 
   const itemById = new Map((sale.data?.items ?? []).map((item) => [item.id, item]));
 

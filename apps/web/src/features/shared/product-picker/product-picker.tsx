@@ -84,7 +84,7 @@ export function ProductPicker({
   const [draft, setDraft] = React.useState("");
   const [debounced, setDebounced] = React.useState("");
   const [open, setOpen] = React.useState(false);
-  const [highlight, setHighlight] = React.useState(0);
+  const [highlightState, setHighlightState] = React.useState({ key: "", index: 0 });
   const [selectedProduct, setSelectedProduct] = React.useState<ProductSummary | null>(null);
   const [lookupPending, setLookupPending] = React.useState(false);
 
@@ -115,9 +115,13 @@ export function ProductPicker({
     [productsQuery.data],
   );
 
-  React.useEffect(() => {
-    setHighlight(0);
-  }, [debounced, productsQuery.dataUpdatedAt]);
+  const resultsKey = `${debounced}:${productsQuery.dataUpdatedAt}`;
+  const highlight = highlightState.key === resultsKey ? highlightState.index : 0;
+
+  function setHighlight(index: number | ((current: number) => number)) {
+    const next = typeof index === "function" ? index(highlight) : index;
+    setHighlightState({ key: resultsKey, index: next });
+  }
 
   const resolvedSelected = clearOnSelect
     ? null
